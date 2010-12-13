@@ -3,7 +3,7 @@ import re
 import string
 
 # TODO Error/Warning managment
-# TODO Document every function correctly
+# TODO Document every function correctly (docstrings)
 # TODO Put things in a module
 # TODO Check for other OS compatibility
 # TODO Do a validator (input file MUST be output file, and check every function)
@@ -13,14 +13,14 @@ import string
 # TODO Add more types of data (currently: Drawer=DONE)
 # BUG The drawers lost indentation and added spaces/tabs in properties :NON-BLOCKING::NO-DATA-LOSS: 
 
-class PyOrgMode_Property():
+class Property():
     def __init__(self,name,value):
         self.name = name
         self.value = value
     def text_output(self):
         return ":" + self.name + ": " + self.value
 
-class PyOrgMode_Drawer():
+class Drawer():
     # TODO has_property, get_property
     def __init__(self):
         self.id = uuid.uuid4()
@@ -40,7 +40,7 @@ class PyOrgMode_Drawer():
         output = output + ":END:\n"
         return output
 
-class PyOrgMode_Node():
+class Node():
     # Defines an OrgMode Node in a structure
     # The ID is auto-generated using uuid.
     # The level 0 is the document itself
@@ -62,7 +62,7 @@ class PyOrgMode_Node():
         return self.id
 
     def add_drawer(self,name):
-        drawer = PyOrgMode_Drawer()
+        drawer = Drawer()
         id = drawer.id
         drawer.name = name
         self.drawers[id] = drawer
@@ -133,7 +133,7 @@ class PyOrgMode_Node():
         return output
 
 
-class PyOrgMode_Datastructure:
+class Datastructure:
     # Data structure containing all the nodes
     # The root property contains a reference to the level 0 node
     # TODO Move or delete nodes
@@ -149,7 +149,7 @@ class PyOrgMode_Datastructure:
             node.parent.append_child(node)
 
     def load_from_file(self,name):
-        current = PyOrgMode_Node()
+        current = Node()
         parent = None
         file = open(name,'r')
 
@@ -172,7 +172,7 @@ class PyOrgMode_Datastructure:
                         print("ERROR: :END: Before beginning of drawer")
                 elif current_drawer != None and drawer.group(2):
                     current.add_to_drawer(current_drawer,
-                                          PyOrgMode_Property(drawer.group(1),drawer.group(2)))
+                                          Property(drawer.group(1),drawer.group(2)))
                 elif drawer.group(1) and not drawer.group(2) and current_drawer == None:
                     current_drawer = current.add_drawer(drawer.group(1))
             elif current_drawer != None: # If a Drawer is open, add content to it
@@ -189,7 +189,7 @@ class PyOrgMode_Datastructure:
                     current = current.parent
 
                 # Creating a new node and assigning parameters
-                current = PyOrgMode_Node() 
+                current = Node() 
                 current.level = len(heading_stars.group(1))
                 current.set_heading(re_heading.findall(line)[0][0].rstrip("\n"))
                 current.set_parent(parent)
@@ -218,7 +218,3 @@ class PyOrgMode_Datastructure:
         output = node.text_output()
 
         return output
-
-test = PyOrgMode_Datastructure()
-test.load_from_file("test.org")
-test.save_to_file("output.org")
