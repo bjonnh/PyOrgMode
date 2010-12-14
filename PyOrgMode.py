@@ -144,7 +144,7 @@ class Datastructure:
             heading_stars = re_heading_stars.search(line)
             drawer = re_drawer.search(line)
 
-            if type(current) is Drawer:
+            if isinstance(current, Drawer):
                 if drawer:
                     if drawer.group(1) == "END":
                         current = current.parent
