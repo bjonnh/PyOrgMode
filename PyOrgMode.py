@@ -101,7 +101,7 @@ class Node(OrgElement):
         if hasattr(self,"level"):
             output = output + "*"*self.level
 
-        if self.parent != None:
+        if self.parent is not None:
             output = output + " " + self.heading
 
             for tag in self.tags:
@@ -123,7 +123,7 @@ class Datastructure:
     root = None
 
     def append(self,node):
-        if (node.parent == None): # Node has no parent (so it is the level 0 node)
+        if node.parent is None: # Node has no parent (so it is the level 0 node)
             self.root = node # So parent is the first added node
         else:
             node.parent.append(node)
@@ -144,7 +144,7 @@ class Datastructure:
             heading_stars = re_heading_stars.search(line)
             drawer = re_drawer.search(line)
 
-            if type(current) == Drawer:
+            if type(current) is Drawer:
                 if drawer:
                     if drawer.group(1) == "END":
                         current = current.parent
@@ -175,7 +175,7 @@ class Datastructure:
                 # Looking for tags
                 current.tags = re_tags.findall(line)
             else: # Nothing special, just content
-                if line != None:
+                if line is not None:
                     current.append(line)
 
         # Add the last node
