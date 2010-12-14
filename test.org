@@ -1,4 +1,8 @@
 * Autre format de ces prises de notes:
+:PROPERTIES:
+:ID: 1
+et
+:END:
   - [[http://www.piprime.fr/files/articles/emacs/org/org.org][code source au format org]]
   - [[http://www.piprime.fr/files/articles/emacs/org/org.pdf][le pdf généré à partir de l'export en LaTeX]]
   - [[http://www.piprime.fr/files/articles/emacs/org/org.pdf][l'export en LaTeX]] pour les très curieux ;-)
