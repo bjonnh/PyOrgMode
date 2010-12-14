@@ -1,0 +1,195 @@
+% Created 2010-12-14 Tue 21:35
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{soul}
+\usepackage{t1enc}
+\usepackage{textcomp}
+\usepackage{marvosym}
+\usepackage{wasysym}
+\usepackage{latexsym}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\tolerance=1000
+\providecommand{\alert}[1]{\textbf{#1}}
+
+\title{PyOrgMode}
+\author{}
+\date{14 December 2010}
+
+\begin{document}
+
+\maketitle
+
+\setcounter{tocdepth}{3}
+\tableofcontents
+\vspace*{1cm}
+\section{PyOrgMode}
+\label{sec-1}
+\subsection{Tools}
+\label{sec-1_1}
+
+\texttt{Tangle} (Export the PyOrgMode.py file)
+\subsection{Documentation}
+\label{sec-1_2}
+\subsubsection{\textbf{TODO} TODO LIST [0\%]}
+\label{sec-1_2_1}
+
+\begin{itemize}
+\item $\Box$ Error/Warning managment
+\item $\Box$ TODO Document every function correctly (docstrings)
+\item $\Box$ TODO Check for other OS compatibility
+\item $\Box$ TODO Do a validator (input file MUST be output file, and check every function)
+\item $\Box$ TODO TODO tags (and others)
+\item $\Box$ TODO Priority
+\item $\Box$ TODO Add more types of data (List,…)
+\item $\Box$ TODO Class DataStructure : Modular way to check for elements (the finding loop can became rather big if everything is implemented)
+\item $\Box$ TODO Class DataStructure : Move or delete nodes
+\end{itemize}
+\subsubsection{BUG LIST [0\%]}
+\label{sec-1_2_2}
+
+\begin{description}
+\item $\Box$ The drawers lost indentation and added spaces/tabs in properties  :NONBLOCKING::NODATALOSS:
+\end{description}
+\subsubsection{ChangeLog}
+\label{sec-1_2_3}
+\begin{itemize}
+
+\item 0.01f
+\label{sec-1_2_3_1}%
+\begin{itemize}
+
+\item New elements
+\label{sec-1_2_3_1_1}%
+\begin{itemize}
+\item Added Schedule element for `\texttt{DEADLINE:} and `\texttt{SCHEDULED:}
+\end{itemize}
+
+
+\end{itemize} % ends low level
+\end{itemize} % ends low level
+\subsubsection{Authors [1/1]}
+\label{sec-1_2_4}
+
+\begin{itemize}
+\item $\boxtimes$ BISSON Jonathan <bissonjonathan on the googlethingy>
+\end{itemize}
+\subsection{Code}
+\label{sec-1_3}
+\subsubsection{License}
+\label{sec-1_3_1}
+\label{31a46da7-f49b-4826-9c46-1513054f6202}
+\subsubsection{Imports}
+\label{sec-1_3_2}
+\label{5fa2a7a6-476a-43c2-81f4-0fee4ee86fe2}
+\subsubsection{Class OrgElement}
+\label{sec-1_3_3}
+\label{caea64f7-03b1-4f45-8abe-81819d89c6a9}
+\subsubsection{Class Property}
+\label{sec-1_3_4}
+\label{8dec0cc1-918d-4282-8549-07efa0f3c4cc}
+\subsubsection{Class Schedule}
+\label{sec-1_3_5}
+\label{c630bcdb-1a8c-42e0-be7d-00b291478083}
+\subsubsection{Class Drawer}
+\label{sec-1_3_6}
+\label{72f6c28a-d103-4462-888e-297d49d0122e}
+\subsubsection{Class Node}
+\label{sec-1_3_7}
+\label{3b4ae05e-be52-4854-a638-ecc8d2480512}
+\subsubsection{Class DataStructure}
+\label{sec-1_3_8}
+\label{123f19bd-309b-4bda-91de-9c1ca202fac4}
+
+\begin{verbatim}
+class DataStructure:
+    """
+    Data structure containing all the nodes
+    The root property contains a reference to the level 0 node
+    """
+
+    root = None
+
+    def append(self,node):
+        if node.parent is None: # Node has no parent (so it is the level 0 node)
+            self.root = node # So parent is the first added node
+        else:
+            node.parent.append(node)
+
+    def load_from_file(self,name):
+        current = Node()
+        parent = None
+        file = open(name,'r')
+
+        re_heading_stars = re.compile("^(\*+)\s(.*?)\s*$")
+        re_drawer = re.compile("^(?:\s*?)(?::)(\S.*?)(?::)\s*(.*?)$")
+        re_heading = re.compile("(?:\*+)\s((.*?)(?:\s*.*?)\s*\s)((:\S(.*?)\S:$)|$)")
+
+        # The (?!.*?\]) protects against links containing tags being considered as tags
+        re_tags = re.compile("(?:::|\s:)(\S.*?\S)(?=:)(?!.*?\])")
+
+        re_scheduled = re.compile("(?:\s*)(SCHEDULED|DEADLINE)(?::\s*)(<.*?>)(?:\s.*|$)")
+
+        current_drawer = None
+        for line in file:
+            heading_stars = re_heading_stars.search(line)
+            drawer = re_drawer.search(line)
+            scheduled = re_scheduled.findall(line)
+
+            if isinstance(current, Drawer):
+                if drawer:
+                    if drawer.group(1) == "END":
+                        current = current.parent
+                    elif drawer.group(2):
+                        current.append(Property(drawer.group(1),drawer.group(2)))
+                else:
+                    current.append(line.rstrip("\n"))
+            elif drawer:
+                current = current.append(Drawer(drawer.group(1)))
+
+            elif heading_stars: # We have a heading
+                self.append(current) # We append the current node as it is done
+
+                # Is that a new level ?
+                if (len(heading_stars.group(1)) > current.level): # Yes
+                    parent = current # Parent is now the current node
+
+                # If we are going back one or more levels, walk through parents
+                while len(heading_stars.group(1)) < current.level:
+                    current = current.parent
+
+                # Creating a new node and assigning parameters
+                current = Node() 
+                current.level = len(heading_stars.group(1))
+                current.heading = re_heading.findall(line)[0][0].rstrip("\n")
+                current.parent = parent
+
+                # Looking for tags
+                current.tags = re_tags.findall(line)
+            elif \texttt{scheduled:}
+
+                current.append(Schedule(scheduled[0][0], scheduled[0][1]))
+            else: # Nothing special, just content
+                if line is not None:
+                    current.append(line)
+
+        # Add the last node
+        if current.level>0:
+            self.append(current)
+
+        file.close()
+
+    def save_to_file(self,name):
+        output = open(name,'w')
+        output.write(str(self.root))
+        output.close()
+\end{verbatim}
+
+\end{document}

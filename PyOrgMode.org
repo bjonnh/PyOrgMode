@@ -1,4 +1,5 @@
 #+BABEL: :comments yes
+#+VERSION: 0.01f
 * PyOrgMode
 ** Tools
 [[elisp:org-babel-tangle][Tangle]] (Export the PyOrgMode.py file)
@@ -11,8 +12,16 @@
 - [ ] TODO TODO tags (and others)
 - [ ] TODO Priority
 - [ ] TODO Add more types of data (List,…) 
+- [ ] TODO Class DataStructure : Modular way to check for elements (the finding loop can became rather big if everything is implemented)
+- [ ] TODO Class DataStructure : Move or delete nodes
 *** BUG LIST [0%]
 - [ ] The drawers lost indentation and added spaces/tabs in properties  :NONBLOCKING::NODATALOSS: 
+*** ChangeLog
+**** 0.01f
+***** New elements
+- Added Schedule element for 'DEADLINE: and 'SCHEDULED:
+***** Tries
+- Class DataStructure : Trying to simplify the Reg exps
 *** Authors [1/1]
 - [X] BISSON Jonathan <bissonjonathan on the googlethingy>
 ** Code
@@ -21,7 +30,7 @@
     :ID:       31a46da7-f49b-4826-9c46-1513054f6202
     :END:
 #+srcname: license_comments
-#+begin_src python :tangle PyOrgMode.py :exports none
+#+begin_src python :tangle PyOrgMode.py :exports code
   # -*- encoding: utf-8 -*-
   ##############################################################################
   #
@@ -49,7 +58,7 @@
     :ID:       5fa2a7a6-476a-43c2-81f4-0fee4ee86fe2
     :END:
 #+srcname: imports
-#+begin_src python :tangle PyOrgMode.py :exports none
+#+begin_src python :tangle PyOrgMode.py :exports code
   """
   The PyOrgMode class is able to read,modify and create orgfiles. The internal
   representation of the file allows the use of orgfiles easily in your projects.
@@ -63,7 +72,7 @@
     :ID:       caea64f7-03b1-4f45-8abe-81819d89c6a9
     :END:
 #+srcname: class_OrgElement
-#+begin_src python :tangle PyOrgMode.py :exports none
+#+begin_src python :tangle PyOrgMode.py :exports code
 class OrgElement:
     """
     Generic class for all Elements excepted text and unrecognized ones
@@ -85,7 +94,7 @@ class OrgElement:
     :ID:       8dec0cc1-918d-4282-8549-07efa0f3c4cc
     :END:
 #+srcname: class_Property
-#+begin_src python :tangle PyOrgMode.py :exports none
+#+begin_src python :tangle PyOrgMode.py :exports code
 class Property(OrgElement):
     """
     A Property object, used in drawers.
@@ -100,12 +109,43 @@ class Property(OrgElement):
         """
         return ":" + self.name + ": " + self.value
 #+end_src
+*** Class Schedule
+    :PROPERTIES:
+    :ID:       c630bcdb-1a8c-42e0-be7d-00b291478083
+    :END:
+#+srcname: class_Schedule
+#+begin_src python :tangle PyOrgMode.py :exports code
+  class Schedule(OrgElement):
+      """
+      Schedule is an element taking into account DEADLINE and SCHEDULED elements
+      """
+      DEADLINE = 1
+      SCHEDULED = 2
+      def __init__(self,type="",date=""):
+          OrgElement.__init__(self)
+          self.date = date
+	  self.type = 0
+          if type == "DEADLINE":
+              self.type = self.DEADLINE
+          elif type == "SCHEDULED":
+              self.type = self.SCHEDULED
+  
+      def __str__(self):
+          """
+          Outputs the Schedule element in text format (e.g SCHEDULED: <2010-10-10 10:10>)
+          """
+          if self.type == self.DEADLINE:
+              output = "DEADLINE:"
+          elif self.type == self.SCHEDULED:
+              output = "SCHEDULED:"
+          return output + " " + self.date + "\n"
+#+end_src
 *** Class Drawer
     :PROPERTIES:
     :ID:       72f6c28a-d103-4462-888e-297d49d0122e
     :END:
 #+srcname: class_Drawer
-#+begin_src python :tangle PyOrgMode.py :exports none
+#+begin_src python :tangle PyOrgMode.py :exports code
 class Drawer(OrgElement):
     """
     A Drawer object, containing properties and text
@@ -126,51 +166,52 @@ class Drawer(OrgElement):
     :ID:       3b4ae05e-be52-4854-a638-ecc8d2480512
     :END:
 #+srcname: class_Node
-#+begin_src python :tangle PyOrgMode.py :exports none
-class Node(OrgElement):
-    # Defines an OrgMode Node in a structure
-    # The ID is auto-generated using uuid.
-    # The level 0 is the document itself
+#+begin_src python :tangle PyOrgMode.py :exports code
+  class Node(OrgElement):
+      # Defines an OrgMode Node in a structure
+      # The ID is auto-generated using uuid.
+      # The level 0 is the document itself
 
-    def __init__(self):
-        OrgElement.__init__(self)
-        self.content = []       
-        self.level = 0
-        self.heading = ""
-        self.tags = []
-        # TODO  Scheduling structure
-
-    def __str__(self):
-        output = ""
-
-        if hasattr(self,"level"):
-            output = output + "*"*self.level
-
-        if self.parent is not None:
-            output = output + " " + self.heading
-
-            for tag in self.tags:
-                output= output + ":" + tag + ":"
-
-            output = output + "\n"
+      def __init__(self):
+          OrgElement.__init__(self)
+          self.content = []       
+          self.level = 0
+          self.heading = ""
+          self.tags = []
+          # TODO  Scheduling structure
   
-        for element in self.content:
-            output = output + element.__str__()
-
-        return output
+      def __str__(self):
+          output = ""
+  
+          if hasattr(self,"level"):
+              output = output + "*"*self.level
+  
+          if self.parent is not None:
+              output = output + " " + self.heading
+  
+              for tag in self.tags:
+                  output= output + ":" + tag + ":"
+  
+              output = output + "\n"
+    
+          for element in self.content:
+              output = output + element.__str__()
+  
+          return output
+  
 #+end_src
 *** Class DataStructure
     :PROPERTIES:
     :ID:       123f19bd-309b-4bda-91de-9c1ca202fac4
     :END:
 #+srcname: class_Property
-#+begin_src python :tangle PyOrgMode.py :exports none
+#+begin_src python :tangle PyOrgMode.py :exports code
   class DataStructure:
       """
       Data structure containing all the nodes
       The root property contains a reference to the level 0 node
       """
-      # TODO Move or delete nodes (should be easy now)
+  
       root = None
   
       def append(self,node):
@@ -184,16 +225,17 @@ class Node(OrgElement):
           parent = None
           file = open(name,'r')
   
-          re_heading_stars = re.compile("^(\*+)\s(.*?)\s*$")
           re_drawer = re.compile("^(?:\s*?)(?::)(\S.*?)(?::)\s*(.*?)$")
-          re_heading = re.compile("(?:\*+)\s((.*?)(?:\s*.*?)\s*\s)((:\S(.*?)\S:$)|$)")
-          # The (?!.*?\]) protects against links containing tags being considered as tags
-          re_tags = re.compile("(?:::|\s:)(\S.*?\S)(?=:)(?!.*?\])")
+          re_heading = re.compile("^(\*+)\s*(\[.*\])?\s*(.*)$")
+  
+          re_scheduled = re.compile("(?:\s*)(SCHEDULED|DEADLINE)(?::\s*)(<.*?>)(?:\s.*|$)")
   
           current_drawer = None
           for line in file:
-              heading_stars = re_heading_stars.search(line)
+              heading = re_heading.findall(line)
+  
               drawer = re_drawer.search(line)
+              scheduled = re_scheduled.findall(line)
   
               if isinstance(current, Drawer):
                   if drawer:
@@ -206,25 +248,31 @@ class Node(OrgElement):
               elif drawer:
                   current = current.append(Drawer(drawer.group(1)))
   
-              elif heading_stars: # We have a heading
+              elif heading: # We have a heading
                   self.append(current) # We append the current node as it is done
   
                   # Is that a new level ?
-                  if (len(heading_stars.group(1)) > current.level): # Yes
+                  if (len(heading[0][0]) > current.level): # Yes
                       parent = current # Parent is now the current node
   
                   # If we are going back one or more levels, walk through parents
-                  while len(heading_stars.group(1)) < current.level:
+                  while len(heading[0][0]) < current.level:
                       current = current.parent
   
                   # Creating a new node and assigning parameters
                   current = Node() 
-                  current.level = len(heading_stars.group(1))
-                  current.heading = re_heading.findall(line)[0][0].rstrip("\n")
+                  print(heading)
+                  current.level = len(heading[0][0])
+                  current.heading = re.sub(":([a-zA-Z0-9_]+):","",heading[0][2]) # Remove tags
                   current.parent = parent
                   
                   # Looking for tags
-                  current.tags = re_tags.findall(line)
+                  heading_without_links = re.sub(" \[(.+)\]","",heading[0][2])
+                  current.tags = re.findall(":([\w]+):",heading_without_links)
+                  print(current.tags)
+  
+              elif scheduled:
+                  current.append(Schedule(scheduled[0][0], scheduled[0][1]))
               else: # Nothing special, just content
                   if line is not None:
                       current.append(line)
@@ -239,4 +287,5 @@ class Node(OrgElement):
           output = open(name,'w')
           output.write(str(self.root))
           output.close()
+  
 #+end_src
