@@ -1,3 +1,6 @@
+
+# [[id:31a46da7-f49b-4826-9c46-1513054f6202][license_comments]]
+
 # -*- encoding: utf-8 -*-
 ##############################################################################
 #
@@ -20,6 +23,10 @@
 #
 ##############################################################################
 
+# license_comments ends here
+
+# [[id:5fa2a7a6-476a-43c2-81f4-0fee4ee86fe2][imports]]
+
 """
 The PyOrgMode class is able to read,modify and create orgfiles. The internal
 representation of the file allows the use of orgfiles easily in your projects.
@@ -28,14 +35,9 @@ representation of the file allows the use of orgfiles easily in your projects.
 import re
 import string
 
-# TODO Error/Warning managment
-# TODO Document every function correctly (docstrings) [10%]
-# TODO Check for other OS compatibility
-# TODO Do a validator (input file MUST be output file, and check every function)
-# TODO TODO tags (and others)
-# TODO Priority
-# TODO Add more types of data (List,…) 
-# BUG The drawers lost indentation and added spaces/tabs in properties :NON-BLOCKING::NO-DATA-LOSS: 
+# imports ends here
+
+# [[id:caea64f7-03b1-4f45-8abe-81819d89c6a9][class_OrgElement]]
 
 class OrgElement:
     """
@@ -53,6 +55,10 @@ class OrgElement:
             element.parent = self
         return element
 
+# class_OrgElement ends here
+
+# [[id:8dec0cc1-918d-4282-8549-07efa0f3c4cc][class_Property]]
+
 class Property(OrgElement):
     """
     A Property object, used in drawers.
@@ -66,6 +72,10 @@ class Property(OrgElement):
         Outputs the property in text format (e.g. :name: value)
         """
         return ":" + self.name + ": " + self.value
+
+# class_Property ends here
+
+# [[id:72f6c28a-d103-4462-888e-297d49d0122e][class_Drawer]]
 
 class Drawer(OrgElement):
     """
@@ -81,6 +91,10 @@ class Drawer(OrgElement):
             output = output + str(element) + "\n"
         output = output + ":END:\n"
         return output
+
+# class_Drawer ends here
+
+# [[id:3b4ae05e-be52-4854-a638-ecc8d2480512][class_Node]]
 
 class Node(OrgElement):
     # Defines an OrgMode Node in a structure
@@ -114,7 +128,11 @@ class Node(OrgElement):
 
         return output
 
-class Datastructure:
+# class_Node ends here
+
+# [[id:123f19bd-309b-4bda-91de-9c1ca202fac4][class_Property]]
+
+class DataStructure:
     """
     Data structure containing all the nodes
     The root property contains a reference to the level 0 node
@@ -188,3 +206,5 @@ class Datastructure:
         output = open(name,'w')
         output.write(str(self.root))
         output.close()
+
+# class_Property ends here
