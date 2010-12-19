@@ -1,4 +1,13 @@
 
+0.01h
+- Internal changes
+   Added Plugin system (simplifying the main loop of DataStructure)
+   The DataStructure class is now an OrgElement
+- External changes
+   Node,Table,Drawer and Schedule are now plugins.
+    Their object method is now joined by PluginName.Element
+- New elements
+   Added Table element (as a Plugin)
 0.01g
 - Changed elements
    Node : Added priority management

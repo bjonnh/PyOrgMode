@@ -1,3 +1,8 @@
+* Table test
+| elsbl    | lesél | lseilép |
+|----------+-------+---------|
+| dlitsléb | 10    | 20      |
+| eietl    | letil | lielt   |
 * Scheduling Test
 ** DEADLINE
 DEADLINE: <2010-10-10>

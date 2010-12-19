@@ -1,19 +1,19 @@
 #+BABEL: :comments no
-#+VERSION: 0.01g
+#+VERSION: 0.01h
 * PyOrgMode
 ** Tools
-[[elisp:org-babel-tangle][Tangle]] (Export the PyOrgMode.py file)
+   [[elisp:org-babel-tangle][Tangle]] (Export the PyOrgMode.py file)
 ** Documentation
-*** TODO TODO LIST [0%]
-- [ ] Error/Warning managment
+*** TODO TODO LIST [0/9]
 - [ ] TODO Document every function correctly (docstrings)
+- [ ] TODO Error/Warning managment
 - [ ] TODO Check for other OS compatibility
 - [ ] TODO Do a validator (input file MUST be output file, and check every function)
 - [ ] TODO TODO tags (and others)
-- [ ] TODO Priority
 - [ ] TODO Add more types of data (List,…) 
-- [ ] TODO Class DataStructure : Modular way to check for elements (the finding loop can became rather big if everything is implemented)
 - [ ] TODO Class DataStructure : Move or delete nodes
+- [ ] TODO Classes : add functions to get properties
+- [ ] TODO Table edition
 *** BUG LIST [0%]
 - [ ] The drawers lost indentation and added spaces/tabs in properties  :NONBLOCKING::NODATALOSS: 
 *** ChangeLog
@@ -21,6 +21,15 @@
     :ID:       b2c042e4-e1f4-49ed-8f0e-2b5f8671e080
     :END:
 #+begin_src ascii :tangle ChangeLog :exports code
+0.01h
+- Internal changes
+   Added Plugin system (simplifying the main loop of DataStructure)
+   The DataStructure class is now an OrgElement
+- External changes
+   Node,Table,Drawer and Schedule are now plugins.
+    Their object method is now joined by PluginName.Element
+- New elements
+   Added Table element (as a Plugin)
 0.01g
 - Changed elements
    Node : Added priority management
@@ -75,47 +84,48 @@
   import re
   import string
 #+end_src
+*** Class Plugin
+    :PROPERTIES:
+    :ID:       e78f2703-0843-43d5-8915-e59b411e0617
+    :END:
+#+srcname: class_Plugin
+#+begin_src python :tangle PyOrgMode.py :exports code
+  class Plugin:
+      """
+      Generic class for all plugins
+      """
+      def __init__(self):
+          self.treated = True
+      def treat(self,current,line):
+          self.treated = True
+          return self._treat(current,line)
+      def _treat(self,current,line):
+          self.treated = False
+          return current
+#+end_src
 *** Class OrgElement
     :PROPERTIES:
     :ID:       caea64f7-03b1-4f45-8abe-81819d89c6a9
     :END:
 #+srcname: class_OrgElement
 #+begin_src python :tangle PyOrgMode.py :exports code
-class OrgElement:
-    """
-    Generic class for all Elements excepted text and unrecognized ones
-    """
-    def __init__(self):
-        self.content=[]
-        self.parent=None
-    def append(self,element):
-        # TODO Check validity
-        self.content.append(element)
-        # Check if the element got a parent attribute
-        # If so, we can have childrens into this element
-        if hasattr(element,"parent"):
-            element.parent = self
-        return element
-#+end_src
-*** Class Property
-    :PROPERTIES:
-    :ID:       8dec0cc1-918d-4282-8549-07efa0f3c4cc
-    :END:
-#+srcname: class_Property
-#+begin_src python :tangle PyOrgMode.py :exports code
-class Property(OrgElement):
-    """
-    A Property object, used in drawers.
-    """
-    def __init__(self,name="",value=""):
-        OrgElement.__init__(self)
-        self.name = name
-        self.value = value
-    def __str__(self):
-        """
-        Outputs the property in text format (e.g. :name: value)
-        """
-        return ":" + self.name + ": " + self.value
+  class OrgElement:
+      """
+      Generic class for all Elements excepted text and unrecognized ones
+      """
+      def __init__(self):
+          self.content=[]
+          self.parent=None
+          self.level=0
+      def append(self,element):
+          # TODO Check validity
+          self.content.append(element)
+          # Check if the element got a parent attribute
+          # If so, we can have childrens into this element
+          if hasattr(element,"parent"):
+              element.parent = self
+          return element
+  
 #+end_src
 *** Class Schedule
     :PROPERTIES:
@@ -123,30 +133,38 @@ class Property(OrgElement):
     :END:
 #+srcname: class_Schedule
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class Schedule(OrgElement):
-      """
-      Schedule is an element taking into account DEADLINE and SCHEDULED elements
-      """
-      DEADLINE = 1
-      SCHEDULED = 2
-      def __init__(self,type="",date=""):
-          OrgElement.__init__(self)
-          self.date = date
-	  self.type = 0
-          if type == "DEADLINE":
-              self.type = self.DEADLINE
-          elif type == "SCHEDULED":
-              self.type = self.SCHEDULED
+  class Schedule(Plugin):
+      """Plugin for Schedule elements"""
+      def __init__(self):
+          Plugin.__init__(self)
+          self.regexp = re.compile("(?:\s*)(SCHEDULED|DEADLINE)(?::\s*)(<.*?>)(?:\s.*|$)")
+      def _treat(self,current,line):
+          scheduled = self.regexp.findall(line)
+          if scheduled:
+              current.append(self.Element(scheduled[0][0], scheduled[0][1]))
+          else:
+              self.treated = False
+          return current
+      class Element(OrgElement):
+          """Schedule is an element taking into account DEADLINE and SCHEDULED elements"""
+          DEADLINE = 1
+          SCHEDULED = 2
+          def __init__(self,type="",date=""):
+              OrgElement.__init__(self)
+              self.date = date
+              self.type = 0
+              if type == "DEADLINE":
+                  self.type = self.DEADLINE
+              elif type == "SCHEDULED":
+                  self.type = self.SCHEDULED
   
-      def __str__(self):
-          """
-          Outputs the Schedule element in text format (e.g SCHEDULED: <2010-10-10 10:10>)
-          """
-          if self.type == self.DEADLINE:
-              output = "DEADLINE:"
-          elif self.type == self.SCHEDULED:
-              output = "SCHEDULED:"
-          return output + " " + self.date + "\n"
+          def __str__(self):
+              """Outputs the Schedule element in text format (e.g SCHEDULED: <2010-10-10 10:10>)"""
+              if self.type == self.DEADLINE:
+                  output = "DEADLINE:"
+              elif self.type == self.SCHEDULED:
+                  output = "SCHEDULED:"
+              return output + " " + self.date + "\n"
 #+end_src
 *** Class Drawer
     :PROPERTIES:
@@ -154,20 +172,92 @@ class Property(OrgElement):
     :END:
 #+srcname: class_Drawer
 #+begin_src python :tangle PyOrgMode.py :exports code
-class Drawer(OrgElement):
-    """
-    A Drawer object, containing properties and text
-    """
-    # TODO has_property, get_property
-    def __init__(self,name=""):
-        OrgElement.__init__(self)
-        self.name = name
-    def __str__(self):
-        output = ":" + self.name + ":\n"
-        for element in self.content:
-            output = output + str(element) + "\n"
-        output = output + ":END:\n"
-        return output
+  class Drawer(Plugin):
+      """A Plugin for drawers"""
+      def __init__(self):
+          Plugin.__init__(self)
+          self.regexp = re.compile("^(?:\s*?)(?::)(\S.*?)(?::)\s*(.*?)$")
+      def _treat(self,current,line):
+          drawer = self.regexp.search(line)
+          if isinstance(current, Drawer.Element): # We are in a drawer
+              if drawer:
+                  if drawer.group(1) == "END": # Ending drawer
+                      current = current.parent
+                  elif drawer.group(2): # Adding a property
+                      current.append(self.Property(drawer.group(1),drawer.group(2)))
+              else: # Adding text in drawer
+                  current.append(line.rstrip("\n"))
+          elif drawer: # Creating a drawer
+              current = current.append(Drawer.Element(drawer.group(1)))
+          else:
+              self.treated = False
+              return current
+          return current # It is a drawer, change the current also (even if not modified)
+      
+      class Element(OrgElement):
+          """A Drawer object, containing properties and text"""
+          def __init__(self,name=""):
+              OrgElement.__init__(self)
+              self.name = name
+          def __str__(self):
+              output = ":" + self.name + ":\n"
+              for element in self.content:
+                  output = output + str(element) + "\n"
+              output = output + ":END:\n"
+              return output
+      class Property(OrgElement):
+          """A Property object, used in drawers."""
+          def __init__(self,name="",value=""):
+              OrgElement.__init__(self)
+              self.name = name
+              self.value = value
+          def __str__(self):
+              """Outputs the property in text format (e.g. :name: value)"""
+              return ":" + self.name + ": " + self.value
+  
+#+end_src
+*** Class Table
+    :PROPERTIES:
+    :ID:       81c6b9ed-297a-49ab-8209-74873dfc524a
+    :END:
+#+srcname: class_Table
+#+begin_src python :tangle PyOrgMode.py :exports code
+  class Table(Plugin):
+      """A plugin for table managment"""
+      def __init__(self):
+          Plugin.__init__(self)
+          self.regexp = re.compile("^\s*\|")
+      def _treat(self,current,line):
+          table = self.regexp.match(line)
+  
+          if isinstance(current,self.Element):
+              if table:
+                  current.append(line.rstrip("\n"))
+              else:
+                  current = current.parent
+                  self.treated = False
+          elif table:
+              current = current.append(self.Element())
+              current.append(line.rstrip("\n"))
+          else:
+              self.treated = False
+              return current
+          return current
+  
+      class Element(OrgElement):
+          """
+          A Table object
+          """
+          
+          def __init__(self):
+              OrgElement.__init__(self)
+          def __str__(self):
+              output = ""
+              for element in self.content:
+                  output = output + str(element) + "\n"
+              return output
+          
+  
 #+end_src
 *** Class Node
     :PROPERTIES:
@@ -175,42 +265,75 @@ class Drawer(OrgElement):
     :END:
 #+srcname: class_Node
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class Node(OrgElement):
-      # Defines an OrgMode Node in a structure
-      # The ID is auto-generated using uuid.
-      # The level 0 is the document itself
-  
+  class Node(Plugin):
       def __init__(self):
-          OrgElement.__init__(self)
-          self.content = []       
-          self.level = 0
-          self.heading = ""
-          self.priority = ""
-          self.tags = []
-          # TODO  Scheduling structure
-  
-      def __str__(self):
-          output = ""
-  
-          if hasattr(self,"level"):
-              output = output + "*"*self.level
-  
-          if self.parent is not None:
-              output = output + " "
-              if self.priority :
-                  output = output + self.priority + " "
-              output = output + self.heading
-  
-              for tag in self.tags:
-                  output= output + ":" + tag + ":"
-  
-              output = output + "\n"
+          Plugin.__init__(self)
+          self.regexp = re.compile("^(\*+)\s*(\[.*\])?\s*(.*)$")
+      def _treat(self,current,line):
+          heading = self.regexp.findall(line)
+          if heading: # We have a heading
+              if current.parent :
+                  current.parent.append(current)
     
-          for element in self.content:
-              output = output + element.__str__()
+                    # Is that a new level ?
+              if (len(heading[0][0]) > current.level): # Yes
+                  parent = current # Parent is now the current node
+              else:
+                  parent = current.parent # If not, the parent of the current node is the parent
+                    # If we are going back one or more levels, walk through parents
+              while len(heading[0][0]) < current.level:
+                  current = current.parent
+    
+                    # Creating a new node and assigning parameters
+              current = Node.Element() 
+              current.level = len(heading[0][0])
+              current.heading = re.sub(":([\w]+):","",heading[0][2]) # Remove tags
+              current.priority = heading[0][1]
+              current.parent = parent
+                    
+                    # Looking for tags
+              heading_without_links = re.sub(" \[(.+)\]","",heading[0][2])
+              current.tags = re.findall(":([\w]+):",heading_without_links)
+          else:
+              self.treated = False
+          return current
   
-          return output
-  
+      class Element(OrgElement):
+          # Defines an OrgMode Node in a structure
+          # The ID is auto-generated using uuid.
+          # The level 0 is the document itself
+    
+          def __init__(self):
+              OrgElement.__init__(self)
+              self.content = []       
+              self.level = 0
+              self.heading = ""
+              self.priority = ""
+              self.tags = []
+            # TODO  Scheduling structure
+    
+          def __str__(self):
+              output = ""
+              
+              if hasattr(self,"level"):
+                  output = output + "*"*self.level
+    
+              if self.parent is not None:
+                  output = output + " "
+                  if self.priority :
+                      output = output + self.priority + " "
+                  output = output + self.heading
+    
+                  for tag in self.tags:
+                      output= output + ":" + tag + ":"
+    
+                  output = output + "\n"
+      
+              for element in self.content:
+                  output = output + element.__str__()
+    
+              return output
+    
 #+end_src
 *** Class DataStructure
     :PROPERTIES:
@@ -218,79 +341,44 @@ class Drawer(OrgElement):
     :END:
 #+srcname: class_Property
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class DataStructure:
+  class DataStructure(OrgElement):
       """
       Data structure containing all the nodes
       The root property contains a reference to the level 0 node
       """
-  
       root = None
-  
-      def append(self,node):
-          if node.parent is None: # Node has no parent (so it is the level 0 node)
-              self.root = node # So parent is the first added node
-          else:
-              node.parent.append(node)
-  
+      def __init__(self):
+          OrgElement.__init__(self)
       def load_from_file(self,name):
-          current = Node()
-          parent = None
+          current = Node.Element()
+          current.parent = None
+          self.root = current
+   
           file = open(name,'r')
   
-          re_drawer = re.compile("^(?:\s*?)(?::)(\S.*?)(?::)\s*(.*?)$")
-          re_heading = re.compile("^(\*+)\s*(\[.*\])?\s*(.*)$")
+          plugins = []
+          plugins.append(Table())
+          plugins.append(Drawer())
+          plugins.append(Node())
+          plugins.append(Schedule())
   
-          re_scheduled = re.compile("(?:\s*)(SCHEDULED|DEADLINE)(?::\s*)(<.*?>)(?:\s.*|$)")
-  
-          current_drawer = None
           for line in file:
-              heading = re_heading.findall(line)
-  
-              drawer = re_drawer.search(line)
-              scheduled = re_scheduled.findall(line)
-  
-              if isinstance(current, Drawer):
-                  if drawer:
-                      if drawer.group(1) == "END":
-                          current = current.parent
-                      elif drawer.group(2):
-                          current.append(Property(drawer.group(1),drawer.group(2)))
+              
+              for plugin in plugins:
+                  current = plugin.treat(current,line)
+                  if plugin.treated: # Plugin found something
+                      treated = True
+                      break;
                   else:
-                      current.append(line.rstrip("\n"))
-              elif drawer:
-                  current = current.append(Drawer(drawer.group(1)))
-  
-              elif heading: # We have a heading
-                  self.append(current) # We append the current node as it is done
-  
-                  # Is that a new level ?
-                  if (len(heading[0][0]) > current.level): # Yes
-                      parent = current # Parent is now the current node
-  
-                  # If we are going back one or more levels, walk through parents
-                  while len(heading[0][0]) < current.level:
-                      current = current.parent
-  
-                  # Creating a new node and assigning parameters
-                  current = Node() 
-                  current.level = len(heading[0][0])
-                  current.heading = re.sub(":([\w]+):","",heading[0][2]) # Remove tags
-                  current.priority = heading[0][1]
-                  current.parent = parent
-                  
-                  # Looking for tags
-                  heading_without_links = re.sub(" \[(.+)\]","",heading[0][2])
-                  current.tags = re.findall(":([\w]+):",heading_without_links)
-  
-              elif scheduled:
-                  current.append(Schedule(scheduled[0][0], scheduled[0][1]))
-              else: # Nothing special, just content
+                      treated = False
+              if not treated: # Nothing special, just content
                   if line is not None:
                       current.append(line)
   
           # Add the last node
+          # TODO: Using close functions of plugins
           if current.level>0:
-              self.append(current)
+              current.parent.append(current)
   
           file.close()
   
@@ -298,5 +386,4 @@ class Drawer(OrgElement):
           output = open(name,'w')
           output.write(str(self.root))
           output.close()
-  
 #+end_src
