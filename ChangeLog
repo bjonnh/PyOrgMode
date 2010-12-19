@@ -1,4 +1,11 @@
 
+0.01i
+- Internal changes
+   Renamed Plugin class to OrgPlugin
+   Added close function to plugins
+   Adding Table cells subdivision (easier editing)
+- PyOrgMode.org Structure change
+   Added test.py in the document
 0.01h
 - Internal changes
    Added Plugin system (simplifying the main loop of DataStructure)

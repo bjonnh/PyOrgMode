@@ -10,10 +10,11 @@
 - [ ] TODO Check for other OS compatibility
 - [ ] TODO Do a validator (input file MUST be output file, and check every function)
 - [ ] TODO TODO tags (and others)
-- [ ] TODO Add more types of data (List,…) 
+- [ ] TODO Add more types of data (List…) 
 - [ ] TODO Class DataStructure : Move or delete nodes
 - [ ] TODO Classes : add functions to get properties
-- [ ] TODO Table edition
+- [ ] TODO Class Table : Table edition (must add separators, cell length, length calculator…)
+- [ ] TODO Class Node: Add the intra-header scheduling
 *** BUG LIST [0%]
 - [ ] The drawers lost indentation and added spaces/tabs in properties  :NONBLOCKING::NODATALOSS: 
 *** ChangeLog
@@ -21,6 +22,13 @@
     :ID:       b2c042e4-e1f4-49ed-8f0e-2b5f8671e080
     :END:
 #+begin_src ascii :tangle ChangeLog :exports code
+0.01i
+- Internal changes
+   Renamed Plugin class to OrgPlugin
+   Added close function to plugins
+   Adding Table cells subdivision (easier editing)
+- PyOrgMode.org Structure change
+   Added test.py in the document
 0.01h
 - Internal changes
    Added Plugin system (simplifying the main loop of DataStructure)
@@ -84,13 +92,13 @@
   import re
   import string
 #+end_src
-*** Class Plugin
+*** Class OrgPlugin
     :PROPERTIES:
     :ID:       e78f2703-0843-43d5-8915-e59b411e0617
     :END:
-#+srcname: class_Plugin
+#+srcname: class_OrgPlugin
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class Plugin:
+  class OrgPlugin:
       """
       Generic class for all plugins
       """
@@ -100,6 +108,12 @@
           self.treated = True
           return self._treat(current,line)
       def _treat(self,current,line):
+          self.treated = False
+          return current
+      def close(self,current):
+          self.treated = True
+          return self._close(current)
+      def _close(self,current):
           self.treated = False
           return current
 #+end_src
@@ -133,10 +147,10 @@
     :END:
 #+srcname: class_Schedule
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class Schedule(Plugin):
+  class Schedule(OrgPlugin):
       """Plugin for Schedule elements"""
       def __init__(self):
-          Plugin.__init__(self)
+          OrgPlugin.__init__(self)
           self.regexp = re.compile("(?:\s*)(SCHEDULED|DEADLINE)(?::\s*)(<.*?>)(?:\s.*|$)")
       def _treat(self,current,line):
           scheduled = self.regexp.findall(line)
@@ -172,10 +186,10 @@
     :END:
 #+srcname: class_Drawer
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class Drawer(Plugin):
+  class Drawer(OrgPlugin):
       """A Plugin for drawers"""
       def __init__(self):
-          Plugin.__init__(self)
+          OrgPlugin.__init__(self)
           self.regexp = re.compile("^(?:\s*?)(?::)(\S.*?)(?::)\s*(.*?)$")
       def _treat(self,current,line):
           drawer = self.regexp.search(line)
@@ -222,26 +236,21 @@
     :END:
 #+srcname: class_Table
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class Table(Plugin):
+  class Table(OrgPlugin):
       """A plugin for table managment"""
       def __init__(self):
-          Plugin.__init__(self)
+          OrgPlugin.__init__(self)
           self.regexp = re.compile("^\s*\|")
       def _treat(self,current,line):
           table = self.regexp.match(line)
-  
-          if isinstance(current,self.Element):
-              if table:
-                  current.append(line.rstrip("\n"))
-              else:
-                  current = current.parent
-                  self.treated = False
-          elif table:
-              current = current.append(self.Element())
-              current.append(line.rstrip("\n"))
+          if table:
+              if not isinstance(current,self.Element):
+                  current = current.append(self.Element())
+              current.append(line.rstrip().strip("|").split("|"))
           else:
+              if isinstance(current,self.Element):
+                  current = current.parent
               self.treated = False
-              return current
           return current
   
       class Element(OrgElement):
@@ -254,7 +263,10 @@
           def __str__(self):
               output = ""
               for element in self.content:
-                  output = output + str(element) + "\n"
+                  output = output + "|"
+                  for cell in element:
+                      output = output + str(cell) + "|"
+                  output = output + "\n"
               return output
           
   
@@ -265,9 +277,9 @@
     :END:
 #+srcname: class_Node
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class Node(Plugin):
+  class Node(OrgPlugin):
       def __init__(self):
-          Plugin.__init__(self)
+          OrgPlugin.__init__(self)
           self.regexp = re.compile("^(\*+)\s*(\[.*\])?\s*(.*)$")
       def _treat(self,current,line):
           heading = self.regexp.findall(line)
@@ -297,6 +309,10 @@
           else:
               self.treated = False
           return current
+      def _close(self,current):
+          # Add the last node
+          if current.level>0:
+              current.parent.append(current)
   
       class Element(OrgElement):
           # Defines an OrgMode Node in a structure
@@ -341,49 +357,61 @@
     :END:
 #+srcname: class_Property
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class DataStructure(OrgElement):
-      """
-      Data structure containing all the nodes
-      The root property contains a reference to the level 0 node
-      """
-      root = None
-      def __init__(self):
-          OrgElement.__init__(self)
-      def load_from_file(self,name):
-          current = Node.Element()
-          current.parent = None
-          self.root = current
-   
-          file = open(name,'r')
-  
-          plugins = []
-          plugins.append(Table())
-          plugins.append(Drawer())
-          plugins.append(Node())
-          plugins.append(Schedule())
-  
-          for line in file:
-              
-              for plugin in plugins:
-                  current = plugin.treat(current,line)
-                  if plugin.treated: # Plugin found something
-                      treated = True
-                      break;
-                  else:
-                      treated = False
-              if not treated: # Nothing special, just content
-                  if line is not None:
-                      current.append(line)
-  
-          # Add the last node
-          # TODO: Using close functions of plugins
-          if current.level>0:
-              current.parent.append(current)
-  
-          file.close()
-  
-      def save_to_file(self,name):
-          output = open(name,'w')
-          output.write(str(self.root))
-          output.close()
+    class DataStructure(OrgElement):
+        """
+        Data structure containing all the nodes
+        The root property contains a reference to the level 0 node
+        """
+        root = None
+        def __init__(self):
+            OrgElement.__init__(self)
+        def load_from_file(self,name):
+            current = Node.Element()
+            current.parent = None
+            self.root = current
+     
+            file = open(name,'r')
+    
+            plugins = []
+            plugins.append(Table())
+            plugins.append(Drawer())
+            plugins.append(Node())
+            plugins.append(Schedule())
+    
+            for line in file:
+                
+                for plugin in plugins:
+                    current = plugin.treat(current,line)
+                    if plugin.treated: # Plugin found something
+                        treated = True
+                        break;
+                    else:
+                        treated = False
+                if not treated: # Nothing special, just content
+                    if line is not None:
+                        current.append(line)
+    
+            for plugin in plugins:
+                current = plugin.close(current)
+            file.close()
+    
+        def save_to_file(self,name,node=None):
+            output = open(name,'w')
+            if node == None:
+                node = self.root
+            output.write(str(node))
+            output.close()
+#+end_src
+    
+** Tests
+*** Take test.org, outputs output.org
+    :PROPERTIES:
+    :ID:       f02cbd6b-e66e-4afa-9f00-ce6c0ea174d5
+    :END:
+#+srcname: test_test.org
+#+begin_src python :tangle test.py :exports code
+import PyOrgMode
+test = PyOrgMode.DataStructure()
+test.load_from_file("test.org")
+test.save_to_file("output.org")
 #+end_src

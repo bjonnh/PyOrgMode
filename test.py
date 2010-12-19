@@ -1,3 +1,4 @@
+
 import PyOrgMode
 test = PyOrgMode.DataStructure()
 test.load_from_file("test.org")

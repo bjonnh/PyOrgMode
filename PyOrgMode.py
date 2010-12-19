@@ -29,7 +29,7 @@ representation of the file allows the use of orgfiles easily in your projects.
 import re
 import string
 
-class Plugin:
+class OrgPlugin:
     """
     Generic class for all plugins
     """
@@ -39,6 +39,12 @@ class Plugin:
         self.treated = True
         return self._treat(current,line)
     def _treat(self,current,line):
+        self.treated = False
+        return current
+    def close(self,current):
+        self.treated = True
+        return self._close(current)
+    def _close(self,current):
         self.treated = False
         return current
 
@@ -59,10 +65,10 @@ class OrgElement:
             element.parent = self
         return element
 
-class Schedule(Plugin):
+class Schedule(OrgPlugin):
     """Plugin for Schedule elements"""
     def __init__(self):
-        Plugin.__init__(self)
+        OrgPlugin.__init__(self)
         self.regexp = re.compile("(?:\s*)(SCHEDULED|DEADLINE)(?::\s*)(<.*?>)(?:\s.*|$)")
     def _treat(self,current,line):
         scheduled = self.regexp.findall(line)
@@ -92,10 +98,10 @@ class Schedule(Plugin):
                 output = "SCHEDULED:"
             return output + " " + self.date + "\n"
 
-class Drawer(Plugin):
+class Drawer(OrgPlugin):
     """A Plugin for drawers"""
     def __init__(self):
-        Plugin.__init__(self)
+        OrgPlugin.__init__(self)
         self.regexp = re.compile("^(?:\s*?)(?::)(\S.*?)(?::)\s*(.*?)$")
     def _treat(self,current,line):
         drawer = self.regexp.search(line)
@@ -135,26 +141,21 @@ class Drawer(Plugin):
             """Outputs the property in text format (e.g. :name: value)"""
             return ":" + self.name + ": " + self.value
 
-class Table(Plugin):
+class Table(OrgPlugin):
     """A plugin for table managment"""
     def __init__(self):
-        Plugin.__init__(self)
+        OrgPlugin.__init__(self)
         self.regexp = re.compile("^\s*\|")
     def _treat(self,current,line):
         table = self.regexp.match(line)
-
-        if isinstance(current,self.Element):
-            if table:
-                current.append(line.rstrip("\n"))
-            else:
-                current = current.parent
-                self.treated = False
-        elif table:
-            current = current.append(self.Element())
-            current.append(line.rstrip("\n"))
+        if table:
+            if not isinstance(current,self.Element):
+                current = current.append(self.Element())
+            current.append(line.rstrip().strip("|").split("|"))
         else:
+            if isinstance(current,self.Element):
+                current = current.parent
             self.treated = False
-            return current
         return current
 
     class Element(OrgElement):
@@ -167,12 +168,15 @@ class Table(Plugin):
         def __str__(self):
             output = ""
             for element in self.content:
-                output = output + str(element) + "\n"
+                output = output + "|"
+                for cell in element:
+                    output = output + str(cell) + "|"
+                output = output + "\n"
             return output
 
-class Node(Plugin):
+class Node(OrgPlugin):
     def __init__(self):
-        Plugin.__init__(self)
+        OrgPlugin.__init__(self)
         self.regexp = re.compile("^(\*+)\s*(\[.*\])?\s*(.*)$")
     def _treat(self,current,line):
         heading = self.regexp.findall(line)
@@ -202,6 +206,10 @@ class Node(Plugin):
         else:
             self.treated = False
         return current
+    def _close(self,current):
+        # Add the last node
+        if current.level>0:
+            current.parent.append(current)
 
     class Element(OrgElement):
         # Defines an OrgMode Node in a structure
@@ -273,14 +281,13 @@ class DataStructure(OrgElement):
                 if line is not None:
                     current.append(line)
 
-        # Add the last node
-        # TODO: Using close functions of plugins
-        if current.level>0:
-            current.parent.append(current)
-
+        for plugin in plugins:
+            current = plugin.close(current)
         file.close()
 
-    def save_to_file(self,name):
+    def save_to_file(self,name,node=None):
         output = open(name,'w')
-        output.write(str(self.root))
+        if node == None:
+            node = self.root
+        output.write(str(node))
         output.close()
