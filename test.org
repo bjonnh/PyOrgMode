@@ -7,6 +7,11 @@ SCHEDULED: <2010-10-10>
 ** TAGS :TAG1:
 ** TAGS :TAG1::TAG2:
 
+
+* Priority
+** [#A] A :a:
+** [#B] B :b:
+** [#C] C :c:
 * Autre format de ces prises de notes:
 :PROPERTIES:
 :ID: 1

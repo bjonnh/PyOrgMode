@@ -1,6 +1,4 @@
 
-# [[id:31a46da7-f49b-4826-9c46-1513054f6202][license_comments]]
-
 # -*- encoding: utf-8 -*-
 ##############################################################################
 #
@@ -23,10 +21,6 @@
 #
 ##############################################################################
 
-# license_comments ends here
-
-# [[id:5fa2a7a6-476a-43c2-81f4-0fee4ee86fe2][imports]]
-
 """
 The PyOrgMode class is able to read,modify and create orgfiles. The internal
 representation of the file allows the use of orgfiles easily in your projects.
@@ -34,10 +28,6 @@ representation of the file allows the use of orgfiles easily in your projects.
 
 import re
 import string
-
-# imports ends here
-
-# [[id:caea64f7-03b1-4f45-8abe-81819d89c6a9][class_OrgElement]]
 
 class OrgElement:
     """
@@ -55,10 +45,6 @@ class OrgElement:
             element.parent = self
         return element
 
-# class_OrgElement ends here
-
-# [[id:8dec0cc1-918d-4282-8549-07efa0f3c4cc][class_Property]]
-
 class Property(OrgElement):
     """
     A Property object, used in drawers.
@@ -72,10 +58,6 @@ class Property(OrgElement):
         Outputs the property in text format (e.g. :name: value)
         """
         return ":" + self.name + ": " + self.value
-
-# class_Property ends here
-
-# [[id:c630bcdb-1a8c-42e0-be7d-00b291478083][class_Schedule]]
 
 class Schedule(OrgElement):
     """
@@ -102,10 +84,6 @@ class Schedule(OrgElement):
             output = "SCHEDULED:"
         return output + " " + self.date + "\n"
 
-# class_Schedule ends here
-
-# [[id:72f6c28a-d103-4462-888e-297d49d0122e][class_Drawer]]
-
 class Drawer(OrgElement):
     """
     A Drawer object, containing properties and text
@@ -121,10 +99,6 @@ class Drawer(OrgElement):
         output = output + ":END:\n"
         return output
 
-# class_Drawer ends here
-
-# [[id:3b4ae05e-be52-4854-a638-ecc8d2480512][class_Node]]
-
 class Node(OrgElement):
     # Defines an OrgMode Node in a structure
     # The ID is auto-generated using uuid.
@@ -135,6 +109,7 @@ class Node(OrgElement):
         self.content = []       
         self.level = 0
         self.heading = ""
+        self.priority = ""
         self.tags = []
         # TODO  Scheduling structure
 
@@ -145,7 +120,10 @@ class Node(OrgElement):
             output = output + "*"*self.level
 
         if self.parent is not None:
-            output = output + " " + self.heading
+            output = output + " "
+            if self.priority :
+                output = output + self.priority + " "
+            output = output + self.heading
 
             for tag in self.tags:
                 output= output + ":" + tag + ":"
@@ -156,10 +134,6 @@ class Node(OrgElement):
             output = output + element.__str__()
 
         return output
-
-# class_Node ends here
-
-# [[id:123f19bd-309b-4bda-91de-9c1ca202fac4][class_Property]]
 
 class DataStructure:
     """
@@ -216,15 +190,14 @@ class DataStructure:
 
                 # Creating a new node and assigning parameters
                 current = Node() 
-                print(heading)
                 current.level = len(heading[0][0])
-                current.heading = re.sub(":([a-zA-Z0-9_]+):","",heading[0][2]) # Remove tags
+                current.heading = re.sub(":([\w]+):","",heading[0][2]) # Remove tags
+                current.priority = heading[0][1]
                 current.parent = parent
                 
                 # Looking for tags
                 heading_without_links = re.sub(" \[(.+)\]","",heading[0][2])
                 current.tags = re.findall(":([\w]+):",heading_without_links)
-                print(current.tags)
 
             elif scheduled:
                 current.append(Schedule(scheduled[0][0], scheduled[0][1]))
@@ -242,5 +215,3 @@ class DataStructure:
         output = open(name,'w')
         output.write(str(self.root))
         output.close()
-
-# class_Property ends here

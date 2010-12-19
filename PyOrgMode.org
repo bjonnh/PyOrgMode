@@ -1,5 +1,5 @@
-#+BABEL: :comments yes
-#+VERSION: 0.01f
+#+BABEL: :comments no
+#+VERSION: 0.01g
 * PyOrgMode
 ** Tools
 [[elisp:org-babel-tangle][Tangle]] (Export the PyOrgMode.py file)
@@ -17,11 +17,19 @@
 *** BUG LIST [0%]
 - [ ] The drawers lost indentation and added spaces/tabs in properties  :NONBLOCKING::NODATALOSS: 
 *** ChangeLog
-**** 0.01f
-***** New elements
-- Added Schedule element for 'DEADLINE: and 'SCHEDULED:
-***** Tries
-- Class DataStructure : Trying to simplify the Reg exps
+    :PROPERTIES:
+    :ID:       b2c042e4-e1f4-49ed-8f0e-2b5f8671e080
+    :END:
+#+begin_src ascii :tangle ChangeLog :exports code
+0.01g
+- Changed elements
+   Node : Added priority management
+0.01f
+- New elements
+   Added Schedule element for 'DEADLINE: and 'SCHEDULED:
+- Optimizations
+   Class DataStructure : Trying to simplify the Reg exps
+#+end_src
 *** Authors [1/1]
 - [X] BISSON Jonathan <bissonjonathan on the googlethingy>
 ** Code
@@ -171,12 +179,13 @@ class Drawer(OrgElement):
       # Defines an OrgMode Node in a structure
       # The ID is auto-generated using uuid.
       # The level 0 is the document itself
-
+  
       def __init__(self):
           OrgElement.__init__(self)
           self.content = []       
           self.level = 0
           self.heading = ""
+          self.priority = ""
           self.tags = []
           # TODO  Scheduling structure
   
@@ -187,7 +196,10 @@ class Drawer(OrgElement):
               output = output + "*"*self.level
   
           if self.parent is not None:
-              output = output + " " + self.heading
+              output = output + " "
+              if self.priority :
+                  output = output + self.priority + " "
+              output = output + self.heading
   
               for tag in self.tags:
                   output= output + ":" + tag + ":"
@@ -261,15 +273,14 @@ class Drawer(OrgElement):
   
                   # Creating a new node and assigning parameters
                   current = Node() 
-                  print(heading)
                   current.level = len(heading[0][0])
-                  current.heading = re.sub(":([a-zA-Z0-9_]+):","",heading[0][2]) # Remove tags
+                  current.heading = re.sub(":([\w]+):","",heading[0][2]) # Remove tags
+                  current.priority = heading[0][1]
                   current.parent = parent
                   
                   # Looking for tags
                   heading_without_links = re.sub(" \[(.+)\]","",heading[0][2])
                   current.tags = re.findall(":([\w]+):",heading_without_links)
-                  print(current.tags)
   
               elif scheduled:
                   current.append(Schedule(scheduled[0][0], scheduled[0][1]))
