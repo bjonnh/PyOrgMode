@@ -1,4 +1,7 @@
 
+0.01j
+- External changes
+   Added load_plugin function to DataStructure
 0.01i
 - Internal changes
    Renamed Plugin class to OrgPlugin

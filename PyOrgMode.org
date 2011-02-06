@@ -1,8 +1,8 @@
 #+BABEL: :comments no
-#+VERSION: 0.01h
+#+VERSION: 0.01j
 * PyOrgMode
 ** Tools
-   [[elisp:org-babel-tangle][Tangle]] (Export the PyOrgMode.py file)
+   [[elisp:org-babel-tangle][Tangle]] (Export the files)
 ** Documentation
 *** TODO TODO LIST [0/9]
 - [ ] TODO Document every function correctly (docstrings)
@@ -22,6 +22,9 @@
     :ID:       b2c042e4-e1f4-49ed-8f0e-2b5f8671e080
     :END:
 #+begin_src ascii :tangle ChangeLog :exports code
+0.01j
+- External changes
+   Added load_plugin function to DataStructure
 0.01i
 - Internal changes
    Renamed Plugin class to OrgPlugin
@@ -284,6 +287,7 @@
       def _treat(self,current,line):
           heading = self.regexp.findall(line)
           if heading: # We have a heading
+              print("Found an heading :"+line)
               if current.parent :
                   current.parent.append(current)
     
@@ -357,50 +361,51 @@
     :END:
 #+srcname: class_Property
 #+begin_src python :tangle PyOrgMode.py :exports code
-    class DataStructure(OrgElement):
-        """
-        Data structure containing all the nodes
-        The root property contains a reference to the level 0 node
-        """
-        root = None
-        def __init__(self):
-            OrgElement.__init__(self)
-        def load_from_file(self,name):
-            current = Node.Element()
-            current.parent = None
-            self.root = current
-     
-            file = open(name,'r')
-    
-            plugins = []
-            plugins.append(Table())
-            plugins.append(Drawer())
-            plugins.append(Node())
-            plugins.append(Schedule())
-    
-            for line in file:
-                
-                for plugin in plugins:
-                    current = plugin.treat(current,line)
-                    if plugin.treated: # Plugin found something
-                        treated = True
-                        break;
-                    else:
-                        treated = False
-                if not treated: # Nothing special, just content
-                    if line is not None:
-                        current.append(line)
-    
-            for plugin in plugins:
-                current = plugin.close(current)
-            file.close()
-    
-        def save_to_file(self,name,node=None):
-            output = open(name,'w')
-            if node == None:
-                node = self.root
-            output.write(str(node))
-            output.close()
+  class DataStructure(OrgElement):
+      """
+      Data structure containing all the nodes
+      The root property contains a reference to the level 0 node
+      """
+      root = None
+      def __init__(self):
+          OrgElement.__init__(self)
+          self.plugins = []
+      def load_plugin(self,*arguments,**keywords):
+          for plugin in arguments:
+              self.plugins.append(plugin)
+      def load_from_file(self,name):
+          current = Node.Element()
+          current.parent = None
+          self.root = current
+   
+          file = open(name,'r')
+  
+          self.load_plugin(Table(),Drawer(),Node(),Schedule())
+  
+          for line in file:
+              
+              for plugin in self.plugins:
+                  current = plugin.treat(current,line)
+                  if plugin.treated: # Plugin found something
+                      treated = True
+                      break;
+                  else:
+                      treated = False
+              if not treated: # Nothing special, just content
+                  if line is not None:
+                      current.append(line)
+  
+          for plugin in self.plugins:
+              current = plugin.close(current)
+          file.close()
+  
+      def save_to_file(self,name,node=None):
+          output = open(name,'w')
+          if node == None:
+              node = self.root
+          output.write(str(node))
+          output.close()
+  
 #+end_src
     
 ** Tests

@@ -181,6 +181,7 @@ class Node(OrgPlugin):
     def _treat(self,current,line):
         heading = self.regexp.findall(line)
         if heading: # We have a heading
+            print("Found an heading :"+line)
             if current.parent :
                 current.parent.append(current)
   
@@ -255,6 +256,10 @@ class DataStructure(OrgElement):
     root = None
     def __init__(self):
         OrgElement.__init__(self)
+        self.plugins = []
+    def load_plugin(self,*arguments,**keywords):
+        for plugin in arguments:
+            self.plugins.append(plugin)
     def load_from_file(self,name):
         current = Node.Element()
         current.parent = None
@@ -262,15 +267,11 @@ class DataStructure(OrgElement):
  
         file = open(name,'r')
 
-        plugins = []
-        plugins.append(Table())
-        plugins.append(Drawer())
-        plugins.append(Node())
-        plugins.append(Schedule())
+        self.load_plugin(Table(),Drawer(),Node(),Schedule())
 
         for line in file:
             
-            for plugin in plugins:
+            for plugin in self.plugins:
                 current = plugin.treat(current,line)
                 if plugin.treated: # Plugin found something
                     treated = True
@@ -281,7 +282,7 @@ class DataStructure(OrgElement):
                 if line is not None:
                     current.append(line)
 
-        for plugin in plugins:
+        for plugin in self.plugins:
             current = plugin.close(current)
         file.close()
 
