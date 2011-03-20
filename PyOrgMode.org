@@ -1,10 +1,14 @@
 #+BABEL: :comments no
-#+VERSION: 0.01j
+#+VERSION: 0.02a
 * PyOrgMode
 ** Tools
    [[elisp:org-babel-tangle][Tangle]] (Export the files)
 ** Documentation
 *** TODO TODO LIST [0/9]
+    :PROPERTIES:
+    :ID:       6d76f100-d4a8-44f3-8206-d5da6c095f78
+    :END:
+#+begin_src ascii :tangle TODO :exports code
 - [ ] TODO Document every function correctly (docstrings)
 - [ ] TODO Add some examples
 - [ ] TODO Error/Warning managment
@@ -16,6 +20,7 @@
 - [ ] TODO Classes : add functions to get properties
 - [ ] TODO Class Table : Table edition (must add separators, cell length, length calculator…)
 - [ ] TODO Class Node: Add the intra-header scheduling
+#+end_src
 *** BUG LIST [0%]
 - [ ] The drawers lost indentation and added spaces/tabs in properties  :NONBLOCKING::NODATALOSS: 
 *** ChangeLog
@@ -23,6 +28,29 @@
     :ID:       b2c042e4-e1f4-49ed-8f0e-2b5f8671e080
     :END:
 #+begin_src ascii :tangle ChangeLog :exports code
+0.02a
+- External changes
+   Added a Clock plugin in order to manage CLOCK: elements
+      Thank to "siberianlaika" for the idea
+   Added a TYPE attribute to the different OrgPlugins elements
+      Maybe we should find a more practical way than this one
+   Removed some debug "prints"
+   Indentation problem that causes wrong reparenting
+      Thanks to Matthew Robison for his patch
+   Added a append_clean function to Node class
+      This function is used to add a tree to a node
+      A call to reparent_cleanlevels is done at the end
+   Added reparent_cleanlevels to Node class
+      This function reparent all the elements. Using a 
+      content to parent way of doing. It checks the content
+      of the first element (call it E), and set the parent of
+      each E-childs to E. This is really useful when moving
+      one tree to another place.
+   Loading the default plugins in the Node class init.
+      This avoids to do it in the load_from_file (which was a 
+      bad idea).
+   Added a new example 
+      using the TYPE attribute and append_clean.
 0.01j
 - External changes
    Added load_plugin function to DataStructure
@@ -95,6 +123,8 @@
   
   import re
   import string
+  import copy
+  import time
 #+end_src
 *** Class OrgPlugin
     :PROPERTIES:
@@ -130,7 +160,7 @@
   class OrgElement:
       """
       Generic class for all Elements excepted text and unrecognized ones
-      """
+      """ 
       def __init__(self):
           self.content=[]
           self.parent=None
@@ -143,6 +173,43 @@
           if hasattr(element,"parent"):
               element.parent = self
           return element
+  
+#+end_src
+*** Class Clock
+    :PROPERTIES:
+    :ID:       6f9f2e24-8e1d-4cbf-9fc4-bfe3a13a9b0f
+    :END:
+#+srcname: class_Clock
+#+begin_src python :tangle PyOrgMode.py :exports code
+  class Clock(OrgPlugin):
+      """Plugin for Clock elements"""
+      def __init__(self):
+          OrgPlugin.__init__(self)
+          self.regexp = re.compile("(?:\s*)CLOCK:(?:\s*)\[(.*)\]--\[(.*)\].*=>\s*(.*)")
+      def _treat(self,current,line):
+          clocked = self.regexp.findall(line)
+          if clocked:
+              current.append(self.Element(clocked[0][0], clocked[0][1],clocked[0][2]))
+          else:
+              self.treated = False
+          return current
+     
+      class Element(OrgElement):
+          """Clock is an element taking into account CLOCK elements"""
+          TYPE = "CLOCK_ELEMENT"
+          def __init__(self,start="",stop="",duration=""):
+              OrgElement.__init__(self)
+              self.dateformat = "%Y-%m-%d %a %H:%M"
+              self.timeformat = "%H:%M"
+              self.start = self.convert_date(start)
+              self.stop = self.convert_date(stop)
+              self.duration = time.strptime(duration,self.timeformat)
+          def convert_date(self,date):
+              """Used to convert dates from a different TZ"""
+              return time.strptime(re.sub("\s(.*)\s"," ",date),"%Y-%m-%d %H:%M")
+          def __str__(self):
+              """Outputs the Clock element in text format (e.g CLOCK: [2010-11-20 Sun 19:42]--[2010-11-20 Sun 20:14] =>  0:32)"""
+              return "CLOCK: [" + time.strftime(self.dateformat,self.start) + "]--["+ time.strftime(self.dateformat,self.stop) + "] =>  "+time.strftime(self.timeformat,self.duration)+"\n"
   
 #+end_src
 *** Class Schedule
@@ -163,10 +230,12 @@
           else:
               self.treated = False
           return current
+  
       class Element(OrgElement):
           """Schedule is an element taking into account DEADLINE and SCHEDULED elements"""
           DEADLINE = 1
           SCHEDULED = 2
+          TYPE = "SCHEDULE_ELEMENT"
           def __init__(self,type="",date=""):
               OrgElement.__init__(self)
               self.date = date
@@ -183,6 +252,7 @@
               elif self.type == self.SCHEDULED:
                   output = "SCHEDULED:"
               return output + " " + self.date + "\n"
+  
 #+end_src
 *** Class Drawer
     :PROPERTIES:
@@ -214,6 +284,7 @@
       
       class Element(OrgElement):
           """A Drawer object, containing properties and text"""
+          TYPE = "DRAWER_ELEMENT"
           def __init__(self,name=""):
               OrgElement.__init__(self)
               self.name = name
@@ -261,7 +332,7 @@
           """
           A Table object
           """
-          
+          TYPE = "TABLE_ELEMENT"
           def __init__(self):
               OrgElement.__init__(self)
           def __str__(self):
@@ -288,7 +359,7 @@
       def _treat(self,current,line):
           heading = self.regexp.findall(line)
           if heading: # We have a heading
-              print("Found an heading :"+line)
+  
               if current.parent :
                   current.parent.append(current)
     
@@ -297,11 +368,11 @@
                   parent = current # Parent is now the current node
               else:
                   parent = current.parent # If not, the parent of the current node is the parent
-                    # If we are going back one or more levels, walk through parents
-              while len(heading[0][0]) < current.level:
-                  current = current.parent
+                  # If we are going back one or more levels, walk through parents
+                  while len(heading[0][0]) < current.level:
+                      current = current.parent
     
-                    # Creating a new node and assigning parameters
+              # Creating a new node and assigning parameters
               current = Node.Element() 
               current.level = len(heading[0][0])
               current.heading = re.sub(":([\w]+):","",heading[0][2]) # Remove tags
@@ -323,7 +394,7 @@
           # Defines an OrgMode Node in a structure
           # The ID is auto-generated using uuid.
           # The level 0 is the document itself
-    
+          TYPE = "NODE_ELEMENT"    
           def __init__(self):
               OrgElement.__init__(self)
               self.content = []       
@@ -341,7 +412,7 @@
     
               if self.parent is not None:
                   output = output + " "
-                  if self.priority :
+                  if self.priority:
                       output = output + self.priority + " "
                   output = output + self.heading
     
@@ -354,7 +425,34 @@
                   output = output + element.__str__()
     
               return output
-    
+          def append_clean(self,element):
+              if isinstance(element,list):
+                  self.content.extend(element)
+              else:
+                  self.content.append(element)
+              self.reparent_cleanlevels(self)
+          def reparent_cleanlevels(self,element=None,level=None):
+              """
+              Reparent the childs elements of 'element' and make levels simpler.
+              Useful after moving one tree to another place or another file.
+              """
+              if element == None:
+                  element = self.root
+              if hasattr(element,"level"):
+                  if level == None:
+                      level = element.level
+                  else:
+                      element.level = level
+  
+              if hasattr(element,"content"):
+                  for child in element.content:
+                      if hasattr(child,"heading"):
+                          print(child.heading)
+                      print("Level: "+str(level)+" Id: "+hex(id(child))+" Type: "+child.TYPE)
+                      if hasattr(child,"parent"):
+                          child.parent = element
+                          self.reparent_cleanlevels(child,level+1)    
+  
 #+end_src
 *** Class DataStructure
     :PROPERTIES:
@@ -368,20 +466,23 @@
       The root property contains a reference to the level 0 node
       """
       root = None
+      TYPE = "DATASTRUCTURE_ELEMENT"
       def __init__(self):
           OrgElement.__init__(self)
           self.plugins = []
-      def load_plugin(self,*arguments,**keywords):
+          self.load_plugins(Table(),Drawer(),Node(),Schedule(),Clock())
+          # Add a root element
+          # The root node is a special node (no parent) used as a container for the file
+          self.root = Node.Element()
+          self.root.parent = None
+          self.level = 0
+  
+      def load_plugins(self,*arguments,**keywords):
           for plugin in arguments:
               self.plugins.append(plugin)
       def load_from_file(self,name):
-          current = Node.Element()
-          current.parent = None
-          self.root = current
-   
+          current = self.root
           file = open(name,'r')
-  
-          self.load_plugin(Table(),Drawer(),Node(),Schedule())
   
           for line in file:
               
@@ -392,9 +493,8 @@
                       break;
                   else:
                       treated = False
-              if not treated: # Nothing special, just content
-                  if line is not None:
-                      current.append(line)
+              if not treated and line is not None: # Nothing special, just content
+                  current.append(line)
   
           for plugin in self.plugins:
               current = plugin.close(current)
@@ -420,4 +520,42 @@ import PyOrgMode
 test = PyOrgMode.DataStructure()
 test.load_from_file("test.org")
 test.save_to_file("output.org")
+#+end_src
+*** Read all the DEADLINE and SCHEDULED elements and put them in a file alone
+    :PROPERTIES:
+    :ID:       bb466fe7-ee89-408e-850d-25923e31ba0f
+    :END:
+#+srcname: test_simple-agenda.org
+#+begin_src python :tangle test_simple-agenda.py :exports code
+  import PyOrgMode
+  import copy
+  def Get_Scheduled_Elements(element, data=[]):
+      """
+      Grab the data from all scheduled elements for all the tree defined by 'element' recursively.
+      Returns all the elements as an array.
+      """
+      if hasattr(element,"content"):
+          for child in element.content:
+              if hasattr(child,"TYPE"):
+                  if child.TYPE == "SCHEDULE_ELEMENT":
+                      # This element is scheduled, we are creating a copy of it
+                      data.append(copy.deepcopy(child.parent))
+              Get_Scheduled_Elements(child,data)
+      return data
+  
+  # Creating the input and output files data structures
+  input_file = PyOrgMode.DataStructure()
+  output_file = PyOrgMode.DataStructure()
+  
+  # Loading from agenda.org file
+  input_file.load_from_file("agenda.org")
+  
+  # Get the scheduled elements (those with SCHEDULE, DEADLINE in them, not in the node name)
+  scheduled_elements = Get_Scheduled_Elements(input_file.root)
+  
+  # Assign these element to the root (reparent each elements recursively, relevel them cleanly)
+  output_file.root.append_clean(scheduled_elements)
+  
+  output_file.save_to_file("test_scheduled_output.org")
+  
 #+end_src

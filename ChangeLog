@@ -1,4 +1,27 @@
 
+0.02a
+- External changes
+   Added a Clock plugin in order to manage CLOCK: elements
+      Thank to "siberianlaika" for the idea
+   Added a TYPE attribute to the different OrgPlugins elements
+      Maybe we should find a more practical way than this one
+   Removed some debug "prints"
+   Indentation problem that causes wrong reparenting
+      Thanks to Matthew Robison for his patch
+   Added a append_clean function to Node class
+      This function is used to add a tree to a node
+      A call to reparent_cleanlevels is done at the end
+   Added reparent_cleanlevels to Node class
+      This function reparent all the elements. Using a 
+      content to parent way of doing. It checks the content
+      of the first element (call it E), and set the parent of
+      each E-childs to E. This is really useful when moving
+      one tree to another place.
+   Loading the default plugins in the Node class init.
+      This avoids to do it in the load_from_file (which was a 
+      bad idea).
+   Added a new example 
+      using the TYPE attribute and append_clean.
 0.01j
 - External changes
    Added load_plugin function to DataStructure

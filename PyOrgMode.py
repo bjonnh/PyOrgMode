@@ -28,6 +28,8 @@ representation of the file allows the use of orgfiles easily in your projects.
 
 import re
 import string
+import copy
+import time
 
 class OrgPlugin:
     """
@@ -51,7 +53,7 @@ class OrgPlugin:
 class OrgElement:
     """
     Generic class for all Elements excepted text and unrecognized ones
-    """
+    """ 
     def __init__(self):
         self.content=[]
         self.parent=None
@@ -65,6 +67,36 @@ class OrgElement:
             element.parent = self
         return element
 
+class Clock(OrgPlugin):
+    """Plugin for Clock elements"""
+    def __init__(self):
+        OrgPlugin.__init__(self)
+        self.regexp = re.compile("(?:\s*)CLOCK:(?:\s*)\[(.*)\]--\[(.*)\].*=>\s*(.*)")
+    def _treat(self,current,line):
+        clocked = self.regexp.findall(line)
+        if clocked:
+            current.append(self.Element(clocked[0][0], clocked[0][1],clocked[0][2]))
+        else:
+            self.treated = False
+        return current
+   
+    class Element(OrgElement):
+        """Clock is an element taking into account CLOCK elements"""
+        TYPE = "CLOCK_ELEMENT"
+        def __init__(self,start="",stop="",duration=""):
+            OrgElement.__init__(self)
+            self.dateformat = "%Y-%m-%d %a %H:%M"
+            self.timeformat = "%H:%M"
+            self.start = self.convert_date(start)
+            self.stop = self.convert_date(stop)
+            self.duration = time.strptime(duration,self.timeformat)
+        def convert_date(self,date):
+            """Used to convert dates from a different TZ"""
+            return time.strptime(re.sub("\s(.*)\s"," ",date),"%Y-%m-%d %H:%M")
+        def __str__(self):
+            """Outputs the Clock element in text format (e.g CLOCK: [2010-11-20 Sun 19:42]--[2010-11-20 Sun 20:14] =>  0:32)"""
+            return "CLOCK: [" + time.strftime(self.dateformat,self.start) + "]--["+ time.strftime(self.dateformat,self.stop) + "] =>  "+time.strftime(self.timeformat,self.duration)+"\n"
+
 class Schedule(OrgPlugin):
     """Plugin for Schedule elements"""
     def __init__(self):
@@ -77,10 +109,12 @@ class Schedule(OrgPlugin):
         else:
             self.treated = False
         return current
+
     class Element(OrgElement):
         """Schedule is an element taking into account DEADLINE and SCHEDULED elements"""
         DEADLINE = 1
         SCHEDULED = 2
+        TYPE = "SCHEDULE_ELEMENT"
         def __init__(self,type="",date=""):
             OrgElement.__init__(self)
             self.date = date
@@ -122,6 +156,7 @@ class Drawer(OrgPlugin):
     
     class Element(OrgElement):
         """A Drawer object, containing properties and text"""
+        TYPE = "DRAWER_ELEMENT"
         def __init__(self,name=""):
             OrgElement.__init__(self)
             self.name = name
@@ -162,7 +197,7 @@ class Table(OrgPlugin):
         """
         A Table object
         """
-        
+        TYPE = "TABLE_ELEMENT"
         def __init__(self):
             OrgElement.__init__(self)
         def __str__(self):
@@ -181,7 +216,7 @@ class Node(OrgPlugin):
     def _treat(self,current,line):
         heading = self.regexp.findall(line)
         if heading: # We have a heading
-            print("Found an heading :"+line)
+
             if current.parent :
                 current.parent.append(current)
   
@@ -190,11 +225,11 @@ class Node(OrgPlugin):
                 parent = current # Parent is now the current node
             else:
                 parent = current.parent # If not, the parent of the current node is the parent
-                  # If we are going back one or more levels, walk through parents
-            while len(heading[0][0]) < current.level:
-                current = current.parent
+                # If we are going back one or more levels, walk through parents
+                while len(heading[0][0]) < current.level:
+                    current = current.parent
   
-                  # Creating a new node and assigning parameters
+            # Creating a new node and assigning parameters
             current = Node.Element() 
             current.level = len(heading[0][0])
             current.heading = re.sub(":([\w]+):","",heading[0][2]) # Remove tags
@@ -216,7 +251,7 @@ class Node(OrgPlugin):
         # Defines an OrgMode Node in a structure
         # The ID is auto-generated using uuid.
         # The level 0 is the document itself
-  
+        TYPE = "NODE_ELEMENT"    
         def __init__(self):
             OrgElement.__init__(self)
             self.content = []       
@@ -234,7 +269,7 @@ class Node(OrgPlugin):
   
             if self.parent is not None:
                 output = output + " "
-                if self.priority :
+                if self.priority:
                     output = output + self.priority + " "
                 output = output + self.heading
   
@@ -247,6 +282,33 @@ class Node(OrgPlugin):
                 output = output + element.__str__()
   
             return output
+        def append_clean(self,element):
+            if isinstance(element,list):
+                self.content.extend(element)
+            else:
+                self.content.append(element)
+            self.reparent_cleanlevels(self)
+        def reparent_cleanlevels(self,element=None,level=None):
+            """
+            Reparent the childs elements of 'element' and make levels simpler.
+            Useful after moving one tree to another place or another file.
+            """
+            if element == None:
+                element = self.root
+            if hasattr(element,"level"):
+                if level == None:
+                    level = element.level
+                else:
+                    element.level = level
+
+            if hasattr(element,"content"):
+                for child in element.content:
+                    if hasattr(child,"heading"):
+                        print(child.heading)
+                    print("Level: "+str(level)+" Id: "+hex(id(child))+" Type: "+child.TYPE)
+                    if hasattr(child,"parent"):
+                        child.parent = element
+                        self.reparent_cleanlevels(child,level+1)
 
 class DataStructure(OrgElement):
     """
@@ -254,20 +316,23 @@ class DataStructure(OrgElement):
     The root property contains a reference to the level 0 node
     """
     root = None
+    TYPE = "DATASTRUCTURE_ELEMENT"
     def __init__(self):
         OrgElement.__init__(self)
         self.plugins = []
-    def load_plugin(self,*arguments,**keywords):
+        self.load_plugins(Table(),Drawer(),Node(),Schedule(),Clock())
+        # Add a root element
+        # The root node is a special node (no parent) used as a container for the file
+        self.root = Node.Element()
+        self.root.parent = None
+        self.level = 0
+
+    def load_plugins(self,*arguments,**keywords):
         for plugin in arguments:
             self.plugins.append(plugin)
     def load_from_file(self,name):
-        current = Node.Element()
-        current.parent = None
-        self.root = current
- 
+        current = self.root
         file = open(name,'r')
-
-        self.load_plugin(Table(),Drawer(),Node(),Schedule())
 
         for line in file:
             
@@ -278,9 +343,8 @@ class DataStructure(OrgElement):
                     break;
                 else:
                     treated = False
-            if not treated: # Nothing special, just content
-                if line is not None:
-                    current.append(line)
+            if not treated and line is not None: # Nothing special, just content
+                current.append(line)
 
         for plugin in self.plugins:
             current = plugin.close(current)

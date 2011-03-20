@@ -8,6 +8,15 @@
 DEADLINE: <2010-10-10>
 ** SCHEDULED
 SCHEDULED: <2010-10-10>
+** CLOCK
+   CLOCK: [2011-02-27 dim. 19:50]--[2011-02-27 dim. 19:51] =>  0:01
+   CLOCK: [2011-02-27 dim. 19:50]--[2011-02-27 dim. 19:50] =>  0:00
+   CLOCK: [2011-02-27 dim. 19:50]--[2011-02-27 dim. 19:50] =>  0:00
+   :PROPERTIES:
+   :ORDERED:  t
+   :CLOCKSUM: 0
+   :END:
+Test
 * TAGS TEST :TAG1::TAG2:
 ** TAGS :TAG1:
 ** TAGS :TAG1::TAG2:
