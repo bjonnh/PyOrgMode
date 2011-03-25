@@ -93,9 +93,15 @@ class Clock(OrgPlugin):
         def convert_date(self,date):
             """Used to convert dates from a different TZ"""
             return time.strptime(re.sub("\s(.*)\s"," ",date),"%Y-%m-%d %H:%M")
+        def format_duration(self,duration):
+            """Used to format durations identically to org-mode"""
+            timestr = time.strftime(self.timeformat,duration)
+            if timestr[0] == '0':
+                return timestr[1:]
+            return timestr
         def __str__(self):
             """Outputs the Clock element in text format (e.g CLOCK: [2010-11-20 Sun 19:42]--[2010-11-20 Sun 20:14] =>  0:32)"""
-            return "CLOCK: [" + time.strftime(self.dateformat,self.start) + "]--["+ time.strftime(self.dateformat,self.stop) + "] =>  "+time.strftime(self.timeformat,self.duration)+"\n"
+            return "CLOCK: [" + time.strftime(self.dateformat,self.start) + "]--["+ time.strftime(self.dateformat,self.stop) + "] =>  "+self.format_duration(self.duration)+"\n"
 
 class Schedule(OrgPlugin):
     """Plugin for Schedule elements"""
