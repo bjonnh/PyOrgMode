@@ -1,4 +1,7 @@
 
+0.02b
+- External changes
+   Added the patch from KAIHOLA Antti about time format.
 0.02a
 - External changes
    Added a Clock plugin in order to manage CLOCK: elements

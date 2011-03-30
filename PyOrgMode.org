@@ -1,5 +1,5 @@
 #+BABEL: :comments no
-#+VERSION: 0.02a
+#+VERSION: 0.02b
 * PyOrgMode
 ** Tools
    [[elisp:org-babel-tangle][Tangle]] (Export the files)
@@ -28,6 +28,9 @@
     :ID:       b2c042e4-e1f4-49ed-8f0e-2b5f8671e080
     :END:
 #+begin_src ascii :tangle ChangeLog :exports code
+0.02b
+- External changes
+   Added the patch from KAIHOLA Antti about time format.
 0.02a
 - External changes
    Added a Clock plugin in order to manage CLOCK: elements
@@ -567,6 +570,9 @@ test.save_to_file("output.org")
   
 #+end_src
 *** Date and time formatting
+    :PROPERTIES:
+    :ID:       29be57c8-e722-4b00-82e9-d663b260548f
+    :END:
 #+srcname: test_clock.org
 #+begin_src python :tangle test_clock.py :exports code  import PyOrgMode
   import PyOrgMode
