@@ -1,10 +1,10 @@
 * Test
 ** Element 1
-   SCHEDULED: <2011-02-08 mar.>
+   SCHEDULED: <2011-02-08>
 ** Element 2
 ** Element 3
-   DEADLINE: <2011-02-08 mar.>
+   DEADLINE: <2011-02-08>
 *** Test
 *** Element 4
-   SCHEDULED: <2011-02-08 mar.>
+   SCHEDULED: <2011-02-08>
 **** Couic

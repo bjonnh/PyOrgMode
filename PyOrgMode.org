@@ -1,5 +1,5 @@
 #+BABEL: :comments no
-#+VERSION: 0.02b
+#+VERSION: 0.03a
  
 * PyOrgMode
 ** Tools
@@ -10,25 +10,39 @@
     :ID:       6d76f100-d4a8-44f3-8206-d5da6c095f78
     :END:
 #+begin_src ascii :tangle TODO :exports code
-- [ ] TODO Document every function correctly (docstrings)
-- [ ] TODO Add some examples
-- [ ] TODO Error/Warning managment
-- [ ] TODO Check for other OS compatibility
-- [ ] TODO Do a validator (input file MUST be output file, and check every function)
-- [ ] TODO TODO tags (and others)
-- [ ] TODO Add more types of data (List…) 
-- [ ] TODO Class DataStructure : Move or delete nodes (you can already do it manually)
-- [ ] TODO Classes : add functions to get properties
-- [ ] TODO Class Table : Table edition (must add separators, cell length, length calculator…)
-- [ ] TODO Class Node: Add the intra-header scheduling
+--- General
+- [ ] Add a documentation system (finding a way for html and pdf export ?)
+- [ ] Document every function correctly (docstrings)
+- [ ] Add some examples
+- [ ] Error/Warning managment
+- [ ] Check for other OS compatibility
+- [ ] TODO tags (and others)
+- [ ] Add more types of data (List…) 
 #+end_src
 *** BUG LIST [0%]
-- [ ] The drawers lost indentation and added spaces/tabs in properties  :NONBLOCKING::NODATALOSS: 
 *** ChangeLog
     :PROPERTIES:
     :ID:       b2c042e4-e1f4-49ed-8f0e-2b5f8671e080
     :END:
 #+begin_src ascii :tangle ChangeLog :exports code
+0.03a
+- External changes
+   Objects (Schedule, Clock, Drawer, Table, Node) are now called OrgSchedule, OrgClock, OrgDrawer, OrgTable, OrgNode to avoid conflicts
+   OrgSchedule: Added the support for combo lines (SCHEDULED+DEADLINE+CLOSED)
+   OrgClock: Now uses the new OrgDate class
+   DataStructure is now called OrgDataStructure
+- Internal changes
+   Restructuration of the .org tangling-file (Document, Code and Tests sections for each kind of class)
+   Restructuration of Plugin and Elements system (mainly to keep the indentation)
+   OrgDate: A new class for managing date and times (and active/inactive time-date formats)
+   Included the patch from KAIHOLA Antti about a wrong parenting bug
+- Documentation
+   Added some details about functions (a lot of work remains)
+- Tests
+   Added the test from KAIHOLA Antti for the parser
+   Added the different test tools from KAIGOLA Antti (like test_simple-agenda updated to use unittest)
+- Python compliance
+   Added the minimal setup file of KAIHOLA Antti
 0.02b
 - External changes
    Added the patch from KAIHOLA Antti about time format.
@@ -115,6 +129,21 @@
   #
   ##############################################################################
 #+end_src
+*** Setup
+**** Code
+     :PROPERTIES:
+     :ID:       ce230397-f460-4184-954c-ddc19f365256
+     :END:
+#+srcname: setup.org
+#+begin_src python :tangle setup.py :exports code
+from setuptools import setup
+
+setup(
+    name='PyOrgMode',
+    version='0.03a',
+    py_modules=['PyOrgMode'],
+)
+#+end_src
 *** Imports
     :PROPERTIES:
     :ID:       5fa2a7a6-476a-43c2-81f4-0fee4ee86fe2
@@ -131,7 +160,162 @@
   import copy
   import time
 #+end_src
+*** Class OrgDate
+**** Documentation
+***** TODO-LIST
+      :PROPERTIES:
+      :ID:       bfedf310-51ec-4c51-a193-aaf36e3a7ea7
+      :END:
+#+begin_src ascii :tangle TODO :exports code
+--- Class OrgDate
+- [ ] Must support locale (conversion for example)
+- [ ] Must support empty initialisation
+- [ ] Must use data validation
+- [ ] Must support recurrent events (+1w …)
+#+end_src
+**** Code
+    :PROPERTIES:
+    :ID:       c420b975-747f-448a-bdc4-6454f9ffaea6
+    :END:
+#+srcname: class_OrgDate
+#+begin_src python :tangle PyOrgMode.py :exports code
+  class OrgDate:
+      """Functions for date management"""
+  
+      format = 0
+      TIMED = 1
+      DATED = 2
+      WEEKDAYED = 4
+      ACTIVE = 8
+      INACTIVE = 16
+  
+      def __init__(self,value=None):
+          """
+          Initialisation of an OrgDate element.
+          """
+          if value != None:
+              self.set_value(value)
+  
+      def set_value(self,value):
+          """
+          Setting the value of this element (automatic recognition of format)
+          """
+          # Checking whether it is an active date-time or not
+          if value[0]=="<":
+              self.format = self.format | self.ACTIVE
+              value = re.findall("(?:<)(.*)(?:>)",value)[0]
+          elif value[0]=="[":
+              self.format = self.format | self.INACTIVE
+              value = re.findall("(?:\[)(.*)(?:\])",value)[0]
+          # Checking if it is a date, a date+time or only a time
+          value_splitted = value.split()
+  
+          timed = re.compile(".*?:.*?")
+          dated = re.compile(".*?-.*?-.*?")
+  
+          if timed.findall(value):
+              self.format = self.format | self.TIMED
+          if dated.findall(value):
+              self.format = self.format | self.DATED
+  
+          if len(value_splitted) == 3 :
+              # We have a three parts date so it's dated, timed and weekdayed
+              self.format = self.format | self.WEEKDAYED
+              self.value = time.strptime(value_splitted[0]+" "+value_splitted[2],"%Y-%m-%d %H:%M")
+          elif len(value_splitted) == 2 and (self.format & self.DATED) and not (self.format & self.TIMED):
+              # We have a two elements date that is dated and not timed. So we must have a dated weekdayed item
+              self.format = self.format | self.WEEKDAYED
+              self.value = time.strptime(value_splitted[0],"%Y-%m-%d")
+          elif self.format & self.TIMED:
+              # We have only a time
+              self.value = time.strptime(value,"%H:%M")
+          elif self.format & self.DATED:
+              self.value = time.strptime(value,"%Y-%m-%d")            
+  
+      def get_value(self):
+          """
+          Get the timestamp as a text according to the format
+          """
+          if self.format & self.ACTIVE:
+              pre = "<"
+              post = ">"
+          elif self.format & self.INACTIVE:
+              pre = "["
+              post = "]"
+          else:
+              pre = ""
+              post = ""
+  
+          if self.format & self.DATED:
+              # We have a dated event
+              dateformat = "%Y-%m-%d"
+              if self.format & self.WEEKDAYED:
+                  # We have a weekday
+                  dateformat = dateformat + " %a"
+              if self.format & self.TIMED:
+                  # We have a time also
+                  dateformat = dateformat + " %H:%M"
+  
+              return pre+time.strftime(dateformat,self.value)+post
+  
+          elif self.format & self.TIMED:
+              # We have a time only
+              timestr = time.strftime("%H:%M",self.value)
+              if timestr[0] == '0':
+                  return timestr[1:]
+              return pre+timestr+post
+  
+#+end_src
+**** Test
+    :PROPERTIES:
+    :ID:       29be57c8-e722-4b00-82e9-d663b260548f
+    :END:
+#+srcname: test_clock.org
+#+begin_src python :tangle test_clock.py :exports code
+  import PyOrgMode
+  import time
+  import unittest
+  
+  
+  class TestClockElement(unittest.TestCase):
+      def test_duration_format(self):
+          """Durations are formatted identically to org-mode"""
+
+          for hour in '0', '1', '5', '10', '12', '13', '19', '23':
+              for minute in '00', '01', '29', '40', '59':
+                  orig_str = '%s:%s' % (hour, minute)
+                  orgdate_element = PyOrgMode.OrgDate(orig_str)
+                  formatted_str = orgdate_element.get_value()
+                  self.assertEqual(formatted_str, orig_str)
+    
+  if __name__ == '__main__':
+      unittest.main()
+  
+#+end_src
+
+*** TODO Class OrgList
+**** Documentation
+***** TODO-LIST
+      :PROPERTIES:
+      :ID:       d7335213-0d1b-440c-9666-ce2420cfaa25
+      :END:
+#+begin_src ascii :tangle TODO :exports code
+--- Class OrgList
+- [ ] Must be written
+#+end_src
+*** TODO Class OrgProtocol
+**** Documentation
+***** TODO-LIST
+      :PROPERTIES:
+      :ID:       5a19bf8a-4741-4feb-9993-ecc1a0a35000
+      :END:
+#+begin_src ascii :tangle TODO :exports code
+--- Class OrgProtocol
+- [ ] Must be written
+#+end_src
 *** Class OrgPlugin
+**** Documentation
+**** Code
     :PROPERTIES:
     :ID:       e78f2703-0843-43d5-8915-e59b411e0617
     :END:
@@ -142,21 +326,43 @@
       Generic class for all plugins
       """
       def __init__(self):
+          """ Generic initialization """
           self.treated = True
+          self.keepindent = True # By default, the plugin system stores the indentation before the treatment
+          self.keepindent_value = ""
+  
       def treat(self,current,line):
+          """ This is a wrapper function for _treat. Asks the plugin if he can manage this kind of line. Returns True if it can """
           self.treated = True
-          return self._treat(current,line)
+          if self.keepindent :
+              self.keepindent_value = line[0:len(line)-len(line.lstrip(" \t"))] # Keep a trace of the indentation
+              return self._treat(current,line.lstrip(" \t"))
+          else:
+              return self._treat(current,line)
+  
       def _treat(self,current,line):
+          """ This is the function used by the plugin for the management of the line. """
           self.treated = False
           return current
+  
+      def _append(self,current,element):
+          """ Internal function that adds to current. """
+          if self.keepindent and hasattr(element,"set_indent"):
+              element.set_indent(self.keepindent_value)
+          return current.append(element)
+  
       def close(self,current):
-          self.treated = True
+          """ A wrapper function for closing the module. """
+          self.treated = False
           return self._close(current)
       def _close(self,current):
+          """ This is the function used by the plugin to close everything that have been opened. """
           self.treated = False
           return current
 #+end_src
 *** Class OrgElement
+**** Documentation
+**** Code
     :PROPERTIES:
     :ID:       caea64f7-03b1-4f45-8abe-81819d89c6a9
     :END:
@@ -170,6 +376,8 @@
           self.content=[]
           self.parent=None
           self.level=0
+          self.indent = ""
+
       def append(self,element):
           # TODO Check validity
           self.content.append(element)
@@ -178,23 +386,40 @@
           if hasattr(element,"parent"):
               element.parent = self
           return element
+
+      def set_indent(self,indent):
+          """ Transfer the indentation from plugin to element. """
+          self.indent = indent
+
+      def output(self):
+          """ Wrapper for the text output. """
+          return self.indent+self._output()
+      def _output(self):
+          """ This is the function really used by the plugin. """
+          return ""
+
+      def __str__(self):
+          """ Used to return a text when called. """
+          return self.output()
   
 #+end_src
-*** Class Clock
+*** Class OrgClock
+**** Documentation
+**** Code
     :PROPERTIES:
     :ID:       6f9f2e24-8e1d-4cbf-9fc4-bfe3a13a9b0f
     :END:
-#+srcname: class_Clock
+#+srcname: class_OrgClock
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class Clock(OrgPlugin):
+  class OrgClock(OrgPlugin):
       """Plugin for Clock elements"""
       def __init__(self):
           OrgPlugin.__init__(self)
-          self.regexp = re.compile("(?:\s*)CLOCK:(?:\s*)\[(.*)\]--\[(.*)\].*=>\s*(.*)")
+          self.regexp = re.compile("(?:\s*)CLOCK:(?:\s*)((?:<|\[).*(?:>||\]))--((?:<|\[).*(?:>||\])).*=>\s*(.*)")
       def _treat(self,current,line):
           clocked = self.regexp.findall(line)
           if clocked:
-              current.append(self.Element(clocked[0][0], clocked[0][1],clocked[0][2]))
+              self._append(current,self.Element(clocked[0][0], clocked[0][1], clocked[0][2]))
           else:
               self.treated = False
           return current
@@ -204,90 +429,116 @@
           TYPE = "CLOCK_ELEMENT"
           def __init__(self,start="",stop="",duration=""):
               OrgElement.__init__(self)
-              self.dateformat = "%Y-%m-%d %a %H:%M"
-              self.timeformat = "%H:%M"
-              self.start = self.convert_date(start)
-              self.stop = self.convert_date(stop)
-              self.duration = time.strptime(duration,self.timeformat)
-          def convert_date(self,date):
-              """Used to convert dates from a different TZ"""
-              return time.strptime(re.sub("\s(.*)\s"," ",date),"%Y-%m-%d %H:%M")
-          def format_duration(self,duration):
-              """Used to format durations identically to org-mode"""
-              timestr = time.strftime(self.timeformat,duration)
-              if timestr[0] == '0':
-                  return timestr[1:]
-              return timestr
-          def __str__(self):
+              self.start = OrgDate(start)
+              self.stop = OrgDate(stop)
+              self.duration = OrgDate(duration)
+          def _output(self):
               """Outputs the Clock element in text format (e.g CLOCK: [2010-11-20 Sun 19:42]--[2010-11-20 Sun 20:14] =>  0:32)"""
-              return "CLOCK: [" + time.strftime(self.dateformat,self.start) + "]--["+ time.strftime(self.dateformat,self.stop) + "] =>  "+self.format_duration(self.duration)+"\n"
+              return "CLOCK: " + self.start.get_value() + "--"+ self.stop.get_value() + " =>  "+self.duration.get_value()+"\n"
   
 #+end_src
-*** Class Schedule
+*** Class OrgSchedule
+**** Documentation
+***** TODO-LIST
+      :PROPERTIES:
+      :ID:       59f13d81-c365-40ae-82fd-38246b74fa48
+      :END:
+#+begin_src ascii :tangle TODO :exports code
+--- Class OrgSchedule
+#+end_src
+**** Code
     :PROPERTIES:
     :ID:       c630bcdb-1a8c-42e0-be7d-00b291478083
     :END:
-#+srcname: class_Schedule
+#+srcname: class_OrgSchedule
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class Schedule(OrgPlugin):
+  class OrgSchedule(OrgPlugin):
       """Plugin for Schedule elements"""
+      # TODO: Need to find a better way to do this
       def __init__(self):
           OrgPlugin.__init__(self)
-          self.regexp = re.compile("(?:\s*)(SCHEDULED|DEADLINE)(?::\s*)(<.*?>)(?:\s.*|$)")
+  
+          self.regexp_scheduled = re.compile("SCHEDULED: ((<|\[).*?(>|\]))")
+          self.regexp_deadline = re.compile("DEADLINE: ((<|\[).*?(>|\]))")
+          self.regexp_closed = re.compile("CLOSED: ((<|\[).*?(>|\]))")
       def _treat(self,current,line):
-          scheduled = self.regexp.findall(line)
-          if scheduled:
-              current.append(self.Element(scheduled[0][0], scheduled[0][1]))
+          scheduled = self.regexp_scheduled.findall(line)
+          deadline = self.regexp_deadline.findall(line)
+          closed = self.regexp_closed.findall(line)
+    
+          if scheduled != []:
+              scheduled = scheduled[0][0]
+          if closed != []:
+              closed = closed[0][0]
+          if deadline != []:
+              deadline = deadline[0][0]
+
+          if scheduled or deadline or closed:
+              self._append(current,self.Element(scheduled, deadline,closed))
           else:
               self.treated = False
           return current
   
       class Element(OrgElement):
-          """Schedule is an element taking into account DEADLINE and SCHEDULED elements"""
+          """Schedule is an element taking into account DEADLINE, SCHEDULED and CLOSED parameters of elements"""
           DEADLINE = 1
           SCHEDULED = 2
+          CLOSED = 4
           TYPE = "SCHEDULE_ELEMENT"
-          def __init__(self,type="",date=""):
+          def __init__(self,scheduled=[],deadline=[],closed=[]):
               OrgElement.__init__(self)
-              self.date = date
               self.type = 0
-              if type == "DEADLINE":
-                  self.type = self.DEADLINE
-              elif type == "SCHEDULED":
-                  self.type = self.SCHEDULED
-  
-          def __str__(self):
+    
+              if scheduled != []:
+                  self.type = self.type | self.SCHEDULED
+                  self.scheduled = OrgDate(scheduled)
+              if deadline != []:
+                  self.type = self.type | self.DEADLINE
+                  self.deadline = OrgDate(deadline)
+              if closed  != []:
+                  self.type = self.type | self.CLOSED
+                  self.closed = OrgDate(closed)
+    
+          def _output(self):
               """Outputs the Schedule element in text format (e.g SCHEDULED: <2010-10-10 10:10>)"""
-              if self.type == self.DEADLINE:
-                  output = "DEADLINE:"
-              elif self.type == self.SCHEDULED:
-                  output = "SCHEDULED:"
-              return output + " " + self.date + "\n"
+              output = ""
+              if self.type & self.SCHEDULED:
+                  output = output + "SCHEDULED: "+self.scheduled.get_value()+" "
+              if self.type & self.DEADLINE:
+                  output = output + "DEADLINE: "+self.deadline.get_value()+" "
+              if self.type & self.CLOSED:
+                  output = output + "CLOSED: "+self.closed.get_value()+" "
+              if output != "":
+                  output = output.rstrip() + "\n"
+              return output
   
+    
 #+end_src
-*** Class Drawer
+*** Class OrgDrawer
+**** Documentation
+**** Code
     :PROPERTIES:
     :ID:       72f6c28a-d103-4462-888e-297d49d0122e
     :END:
-#+srcname: class_Drawer
+#+srcname: class_OrgDrawer
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class Drawer(OrgPlugin):
+  class OrgDrawer(OrgPlugin):
       """A Plugin for drawers"""
       def __init__(self):
           OrgPlugin.__init__(self)
           self.regexp = re.compile("^(?:\s*?)(?::)(\S.*?)(?::)\s*(.*?)$")
       def _treat(self,current,line):
           drawer = self.regexp.search(line)
-          if isinstance(current, Drawer.Element): # We are in a drawer
+          if isinstance(current, OrgDrawer.Element): # We are in a drawer
               if drawer:
                   if drawer.group(1) == "END": # Ending drawer
                       current = current.parent
                   elif drawer.group(2): # Adding a property
-                      current.append(self.Property(drawer.group(1),drawer.group(2)))
+                      self._append(current,self.Property(drawer.group(1),drawer.group(2)))
               else: # Adding text in drawer
-                  current.append(line.rstrip("\n"))
+                  self._append(current,line.rstrip("\n"))
           elif drawer: # Creating a drawer
-              current = current.append(Drawer.Element(drawer.group(1)))
+              current = self._append(current,OrgDrawer.Element(drawer.group(1)))
           else:
               self.treated = False
               return current
@@ -299,11 +550,11 @@
           def __init__(self,name=""):
               OrgElement.__init__(self)
               self.name = name
-          def __str__(self):
+          def _output(self):
               output = ":" + self.name + ":\n"
               for element in self.content:
                   output = output + str(element) + "\n"
-              output = output + ":END:\n"
+              output = output + self.indent + ":END:\n"
               return output
       class Property(OrgElement):
           """A Property object, used in drawers."""
@@ -311,18 +562,28 @@
               OrgElement.__init__(self)
               self.name = name
               self.value = value
-          def __str__(self):
+          def _output(self):
               """Outputs the property in text format (e.g. :name: value)"""
               return ":" + self.name + ": " + self.value
   
 #+end_src
-*** Class Table
+*** Class OrgTable
+**** Documentation
+***** TODO-LIST
+      :PROPERTIES:
+      :ID:       952976ac-f5fa-478d-b338-2b0a56fd4625
+      :END:
+#+begin_src ascii :tangle TODO :exports code
+--- Class OrgTable
+- [ ] Table edition (must add separators, cell length, length calculator…)
+#+end_src
+**** Code
     :PROPERTIES:
     :ID:       81c6b9ed-297a-49ab-8209-74873dfc524a
     :END:
-#+srcname: class_Table
+#+srcname: class_OrgTable
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class Table(OrgPlugin):
+  class OrgTable(OrgPlugin):
       """A plugin for table managment"""
       def __init__(self):
           OrgPlugin.__init__(self)
@@ -346,7 +607,7 @@
           TYPE = "TABLE_ELEMENT"
           def __init__(self):
               OrgElement.__init__(self)
-          def __str__(self):
+          def _output(self):
               output = ""
               for element in self.content:
                   output = output + "|"
@@ -357,16 +618,27 @@
           
   
 #+end_src
-*** Class Node
+*** Class OrgNode
+**** Documentation
+***** TODO-LIST
+      :PROPERTIES:
+      :ID:       4f0bd500-f920-4661-822b-e3581ca59e10
+      :END:
+#+begin_src ascii :tangle TODO :exports code
+--- Class OrgNode
+- [ ] Add the intra-header scheduling
+#+end_src
+**** Code
     :PROPERTIES:
     :ID:       3b4ae05e-be52-4854-a638-ecc8d2480512
     :END:
-#+srcname: class_Node
+#+srcname: class_OrgNode
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class Node(OrgPlugin):
+  class OrgNode(OrgPlugin):
       def __init__(self):
           OrgPlugin.__init__(self)
           self.regexp = re.compile("^(\*+)\s*(\[.*\])?\s*(.*)$")
+          self.keepindent = False # If the line starts by an indent, it is not a node
       def _treat(self,current,line):
           heading = self.regexp.findall(line)
           if heading: # We have a heading
@@ -382,9 +654,9 @@
                   # If we are going back one or more levels, walk through parents
                   while len(heading[0][0]) < current.level:
                       current = current.parent
-    
+                      parent = current.parent
               # Creating a new node and assigning parameters
-              current = Node.Element() 
+              current = OrgNode.Element() 
               current.level = len(heading[0][0])
               current.heading = re.sub(":([\w]+):","",heading[0][2]) # Remove tags
               current.priority = heading[0][1]
@@ -415,7 +687,7 @@
               self.tags = []
             # TODO  Scheduling structure
     
-          def __str__(self):
+          def _output(self):
               output = ""
               
               if hasattr(self,"level"):
@@ -457,21 +729,20 @@
   
               if hasattr(element,"content"):
                   for child in element.content:
-                      if hasattr(child,"heading"):
-                          print(child.heading)
-                      print("Level: "+str(level)+" Id: "+hex(id(child))+" Type: "+child.TYPE)
                       if hasattr(child,"parent"):
                           child.parent = element
                           self.reparent_cleanlevels(child,level+1)    
   
 #+end_src
-*** Class DataStructure
+*** Class OrgDataStructure
+**** Documentation
+**** Code
     :PROPERTIES:
     :ID:       123f19bd-309b-4bda-91de-9c1ca202fac4
     :END:
 #+srcname: class_Property
 #+begin_src python :tangle PyOrgMode.py :exports code
-  class DataStructure(OrgElement):
+  class OrgDataStructure(OrgElement):
       """
       Data structure containing all the nodes
       The root property contains a reference to the level 0 node
@@ -481,17 +752,23 @@
       def __init__(self):
           OrgElement.__init__(self)
           self.plugins = []
-          self.load_plugins(Table(),Drawer(),Node(),Schedule(),Clock())
+          self.load_plugins(OrgTable(),OrgDrawer(),OrgNode(),OrgSchedule(),OrgClock())
           # Add a root element
           # The root node is a special node (no parent) used as a container for the file
-          self.root = Node.Element()
+          self.root = OrgNode.Element()
           self.root.parent = None
           self.level = 0
   
       def load_plugins(self,*arguments,**keywords):
+          """
+          Used to load plugins inside this DataStructure
+          """
           for plugin in arguments:
               self.plugins.append(plugin)
       def load_from_file(self,name):
+          """
+          Used to load an org-file inside this DataStructure
+          """
           current = self.root
           file = open(name,'r')
   
@@ -512,6 +789,9 @@
           file.close()
   
       def save_to_file(self,name,node=None):
+          """
+          Used to save an org-file corresponding to this DataStructure
+          """
           output = open(name,'w')
           if node == None:
               node = self.root
@@ -519,7 +799,49 @@
           output.close()
   
 #+end_src
-    
+**** Test
+     :PROPERTIES:
+     :ID:       6b0735e0-cd0c-422c-b54a-5eac0d1ba55a
+     :END:
+#+srcname: test_parser.org
+#+begin_src python :tangle test_parser.py :exports code
+import PyOrgMode
+import tempfile
+import unittest
+
+
+class TestParser(unittest.TestCase):
+    """Test the org file parser with a simple org structure"""
+
+    def setUp(self):
+        """Parse the org structure from a temporary file"""
+        orgfile = tempfile.NamedTemporaryFile()
+        orgfile.write('\n'.join((
+            '* one',
+            '* two',
+            '** two point one',
+            '* three',
+            '')).encode('UTF-8'))
+        orgfile.flush()
+        self.tree = PyOrgMode.OrgDataStructure()
+        try:
+            self.tree.load_from_file(orgfile.name)
+        finally:
+            orgfile.close()
+
+    def test_has_three_top_level_headings(self):
+        """The example has three top-level headings"""
+        self.assertEqual(len(self.tree.root.content), 3)
+
+    def test_second_item_has_a_subheading(self):
+        """The second top-level heading has one subheading"""
+        self.assertEqual(len(self.tree.root.content[1].content), 1)
+
+
+if __name__ == '__main__':
+    unittest.main()
+
+#+end_src
 ** Tests
 *** Take test.org, outputs output.org
     :PROPERTIES:
@@ -527,10 +849,38 @@
     :END:
 #+srcname: test_test.org
 #+begin_src python :tangle test.py :exports code
-import PyOrgMode
-test = PyOrgMode.DataStructure()
-test.load_from_file("test.org")
-test.save_to_file("output.org")
+  """Tests for parsing and outputting a simple .org test file
+   
+   You need the fr_FR.UTF-8 locale to run these tests
+   """
+   
+  import locale
+  import PyOrgMode
+  try:
+      import unittest2 as unittest
+  except ImportError:
+      import unittest
+   
+   
+  def _normalize_ignored(line):
+      """Normalize a line to ignore differences which aren't yet handled"""
+      line = line.replace(':ORDERED:  t', ':ORDERED: t')
+      return line
+  
+  
+  class TestExampleOrgFile(unittest.TestCase):
+      def test_test_org(self):
+          test = PyOrgMode.OrgDataStructure()
+          test.load_from_file("test.org")
+          locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
+          test.save_to_file("output.org")
+          original = [_normalize_ignored(line) for line in open("test.org")]
+          saved = [_normalize_ignored(line) for line in open("output.org")]
+          self.assertEqual(saved, original)
+  
+  if __name__ == '__main__':
+      unittest.main()
+  
 #+end_src
 *** Read all the DEADLINE and SCHEDULED elements and put them in a file alone
     :PROPERTIES:
@@ -540,6 +890,12 @@ test.save_to_file("output.org")
 #+begin_src python :tangle test_simple-agenda.py :exports code
   import PyOrgMode
   import copy
+  try:
+      import unittest2 as unittest
+  except ImportError:
+      import unittest
+  
+  
   def Get_Scheduled_Elements(element, data=[]):
       """
       Grab the data from all scheduled elements for all the tree defined by 'element' recursively.
@@ -554,48 +910,56 @@ test.save_to_file("output.org")
               Get_Scheduled_Elements(child,data)
       return data
   
-  # Creating the input and output files data structures
-  input_file = PyOrgMode.DataStructure()
-  output_file = PyOrgMode.DataStructure()
   
-  # Loading from agenda.org file
-  input_file.load_from_file("agenda.org")
+  class TestAgenda(unittest.TestCase):
+      def test_agenda(self):
+          # Creating the input and output files data structures
+          input_file = PyOrgMode.OrgDataStructure()
+          output_file = PyOrgMode.OrgDataStructure()
   
-  # Get the scheduled elements (those with SCHEDULE, DEADLINE in them, not in the node name)
-  scheduled_elements = Get_Scheduled_Elements(input_file.root)
+          # Loading from agenda.org file
+          input_file.load_from_file("agenda.org")
   
-  # Assign these element to the root (reparent each elements recursively, relevel them cleanly)
-  output_file.root.append_clean(scheduled_elements)
+          # Get the scheduled elements (those with SCHEDULE, DEADLINE in them, not in the node name)
+          scheduled_elements = Get_Scheduled_Elements(input_file.root)
   
-  output_file.save_to_file("test_scheduled_output.org")
+          # Assign these element to the root (reparent each elements recursively, relevel them cleanly)
+          output_file.root.append_clean(scheduled_elements)
   
-#+end_src
-*** Date and time formatting
-    :PROPERTIES:
-    :ID:       29be57c8-e722-4b00-82e9-d663b260548f
-    :END:
-#+srcname: test_clock.org
-#+begin_src python :tangle test_clock.py :exports code  import PyOrgMode
-  import PyOrgMode
-  import time
-  import unittest
-  
-  
-  class TestClockElement(unittest.TestCase):
-      def test_duration_format(self):
-          """Durations are formatted identically to org-mode"""
-          clock_elem = PyOrgMode.Clock.Element('2011-03-25 06:53',
-                                               '2011-03-25 09:12',
-                                               '2:19')
-          for hour in '0', '1', '5', '10', '12', '13', '19', '23':
-              for minute in '00', '01', '29', '40', '59':
-                  orig_str = '%s:%s' % (hour, minute)
-                  orig_tuple = time.strptime(orig_str,clock_elem.timeformat)
-                  formatted_str = clock_elem.format_duration(orig_tuple)
-                  self.assertEqual(formatted_str, orig_str)
+          output_file.save_to_file("test_scheduled_output.org")
+
+          saved = open("test_scheduled_output.org").readlines()
+          self.assertEqual(saved, ['* Element 1\n',
+                                   '   SCHEDULED: <2011-02-08>\n',
+                                   '* Element 3\n',
+                                   '   DEADLINE: <2011-02-08>\n',
+                                   '** Test\n',
+                                   '** Element 4\n',
+                                   '   SCHEDULED: <2011-02-08>\n',
+                                   '*** Couic\n',
+                                   '* Element 4\n',
+                                   '   SCHEDULED: <2011-02-08>\n',
+                                   '** Couic\n'])
   
   
   if __name__ == '__main__':
       unittest.main()
-  
 #+end_src
+*** Date and time formatting
+*** RegExLab
+This part is used for internal testing. It allows you to test some piece of code inside your org document.
+    :PROPERTIES:
+    :ID:       906a3e71-fba9-43a1-bed4-2ec5a120024d
+    :END:
+Just use C-c C-c to execute this code
+#+srcname: regexlab.org
+#+begin_src python :exports code
+import re
+test_regexp = re.compile("")
+result = test_regexp.findall("")
+return(result)
+#+end_src
+
+#+results: regexlab.org
+|   |
+

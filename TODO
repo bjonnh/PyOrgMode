@@ -1,12 +1,30 @@
 
-- [ ] TODO Document every function correctly (docstrings)
-- [ ] TODO Add some examples
-- [ ] TODO Error/Warning managment
-- [ ] TODO Check for other OS compatibility
-- [ ] TODO Do a validator (input file MUST be output file, and check every function)
-- [ ] TODO TODO tags (and others)
-- [ ] TODO Add more types of data (List…) 
-- [ ] TODO Class DataStructure : Move or delete nodes (you can already do it manually)
-- [ ] TODO Classes : add functions to get properties
-- [ ] TODO Class Table : Table edition (must add separators, cell length, length calculator…)
-- [ ] TODO Class Node: Add the intra-header scheduling
+--- General
+- [ ] Add a documentation system (finding a way for html and pdf export ?)
+- [ ] Document every function correctly (docstrings)
+- [ ] Add some examples
+- [ ] Error/Warning managment
+- [ ] Check for other OS compatibility
+- [ ] Do a validator (input file MUST be output file, and check every function)
+- [ ] TODO tags (and others)
+- [ ] Add more types of data (List…)
+
+--- Class OrgDate
+- [ ] Must support locale (conversion for example)
+- [ ] Must support empty initialisation
+- [ ] Must use data validation
+- [ ] Must support recurrent events (+1w …)
+
+--- Class OrgProtocol
+- [ ] Must be written
+
+--- Class OrgProtocol
+- [ ] Must be written
+
+--- Class OrgSchedule
+
+--- Class OrgTable
+- [ ] Table edition (must add separators, cell length, length calculator…)
+
+--- Class OrgNode
+- [ ] Add the intra-header scheduling

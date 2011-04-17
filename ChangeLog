@@ -1,4 +1,22 @@
 
+0.03a
+- External changes
+   Objects (Schedule, Clock, Drawer, Table, Node) are now called OrgSchedule, OrgClock, OrgDrawer, OrgTable, OrgNode to avoid conflicts
+   OrgSchedule: Added the support for combo lines (SCHEDULED+DEADLINE+CLOSED)
+   OrgClock: Now uses the new OrgDate class
+   DataStructure is now called OrgDataStructure
+- Internal changes
+   Restructuration of the .org tangling-file (Document, Code and Tests sections for each kind of class)
+   Restructuration of Plugin and Elements system (mainly to keep the indentation)
+   OrgDate: A new class for managing date and times (and active/inactive time-date formats)
+   Included the patch from KAIHOLA Antti about a wrong parenting bug
+- Documentation
+   Added some details about functions (a lot of work remains)
+- Tests
+   Added the test from KAIHOLA Antti for the parser
+   Added the different test tools from KAIGOLA Antti (like test_simple-agenda updated to use unittest)
+- Python compliance
+   Added the minimal setup file of KAIHOLA Antti
 0.02b
 - External changes
    Added the patch from KAIHOLA Antti about time format.

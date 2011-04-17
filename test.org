@@ -4,6 +4,8 @@
 | dlitsléb | 10    | 20      |
 | eietl    | letil | lielt   |
 * Scheduling Test
+** DEADLINE SCHEDULED CLOCK combo
+	 SCHEDULED: <2011-04-01 ven.> DEADLINE: <2011-04-04 lun.> CLOSED: [2011-04-05 mar. 19:20]
 ** DEADLINE
 DEADLINE: <2010-10-10>
 ** SCHEDULED
