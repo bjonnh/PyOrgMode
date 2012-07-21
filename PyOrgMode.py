@@ -282,9 +282,9 @@ class OrgSchedule(OrgPlugin):
     def __init__(self):
         OrgPlugin.__init__(self)
 
-        self.regexp_scheduled = re.compile("SCHEDULED: ((<|\[).*?(>|\]))")
-        self.regexp_deadline = re.compile("DEADLINE: ((<|\[).*?(>|\]))")
-        self.regexp_closed = re.compile("CLOSED: ((<|\[).*?(>|\]))")
+        self.regexp_scheduled = re.compile("SCHEDULED: ((<|\[).*?(>|\])(--(<|\[).*?(>|\]))?)")
+        self.regexp_deadline = re.compile("DEADLINE: ((<|\[).*?(>|\])(--(<|\[).*?(>|\]))?)")
+        self.regexp_closed = re.compile("CLOSED: ((<|\[).*?(>|\])(--(<|\[).*?(>|\]))?)")
     def _treat(self,current,line):
         scheduled = self.regexp_scheduled.findall(line)
         deadline = self.regexp_deadline.findall(line)
