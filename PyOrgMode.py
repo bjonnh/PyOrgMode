@@ -40,6 +40,13 @@ class OrgDate:
     WEEKDAYED = 4
     ACTIVE = 8
     INACTIVE = 16
+    RANGED = 32
+
+    # TODO: Timestamp with repeater interval
+    DICT_RE = {'start': '[[<]',
+               'end':   '[]>]',
+               'date':  '([0-9]{4})-([0-9]{2})-([0-9]{2})(\s+([\w]+))?',
+               'time':  '([0-9]{2}):([0-9]{2})'}
 
     def __init__(self,value=None):
         """
@@ -48,74 +55,128 @@ class OrgDate:
         if value != None:
             self.set_value(value)
 
+    def parse_datetime(self, s):
+        """
+        Parses an org-mode date time string.
+        Returns (timed, weekdayed, time_struct).
+        """
+        search_re = '(?P<date>{date})(\s+(?P<time>{time}))?'.format(
+            **self.DICT_RE)
+        s = re.search(search_re, s)
+        weekdayed = (len(s.group('date').split()) > 1)
+        if s.group('time'):
+            return (True,
+                    weekdayed,
+                    time.strptime(
+                        s.group('date').split()[0] + ' ' + s.group('time'),
+                        '%Y-%m-%d %H:%M'))
+        else:
+            return (False,
+                    weekdayed,
+                    time.strptime(s.group('date').split()[0], '%Y-%m-%d'))
+
     def set_value(self,value):
         """
         Setting the value of this element (automatic recognition of format)
         """
         # Checking whether it is an active date-time or not
-        if value[0]=="<":
-            self.format = self.format | self.ACTIVE
-            value = re.findall("(?:<)(.*)(?:>)",value)[0]
-        elif value[0]=="[":
-            self.format = self.format | self.INACTIVE
-            value = re.findall("(?:\[)(.*)(?:\])",value)[0]
-        # Checking if it is a date, a date+time or only a time
-        value_splitted = value.split()
+        if value[0] == '<':
+            self.format |= self.ACTIVE
+        elif value[0] == '[':
+            self.format |= self.INACTIVE
 
-        timed = re.compile(".*?:.*?")
-        dated = re.compile(".*?-.*?-.*?")
-
-        if timed.findall(value):
-            self.format = self.format | self.TIMED
-        if dated.findall(value):
-            self.format = self.format | self.DATED
-
-        if len(value_splitted) == 3 :
-            # We have a three parts date so it's dated, timed and weekdayed
-            self.format = self.format | self.WEEKDAYED
-            self.value = time.strptime(value_splitted[0]+" "+value_splitted[2],"%Y-%m-%d %H:%M")
-        elif len(value_splitted) == 2 and (self.format & self.DATED) and not (self.format & self.TIMED):
-            # We have a two elements date that is dated and not timed. So we must have a dated weekdayed item
-            self.format = self.format | self.WEEKDAYED
-            self.value = time.strptime(value_splitted[0],"%Y-%m-%d")
-        elif self.format & self.TIMED:
-            # We have only a time
-            self.value = time.strptime(value,"%H:%M")
-        elif self.format & self.DATED:
-            self.value = time.strptime(value,"%Y-%m-%d")            
+        # time range on a single day
+        search_re = ('{start}(?P<date>{date})\s+(?P<time1>{time})'
+                     '-(?P<time2>{time}){end}').format(**self.DICT_RE)
+        match = re.search(search_re, value)
+        if match:
+            #timed, weekdayed, date = self.parse_datetime(match.group('date'))
+            #self.value = time.strptime(match.group('time1').split()[0], '%H:%M')
+            #self.value = time.struct_time(date[:3] + self.value[3:])
+            timed, weekdayed, self.value = self.parse_datetime(
+                match.group('date') + ' ' + match.group('time1'))
+            if weekdayed:
+                self.format |= self.WEEKDAYED
+            timed, weekdayed, self.end = self.parse_datetime(
+                match.group('date') + ' ' + match.group('time2'))
+            #self.end = time.strptime(match.group('time2').split()[0], '%H:%M')
+            #self.end = time.struct_time(date[:3] + self.end[3:])
+            self.format |= self.TIMED | self.DATED | self.RANGED
+            return
+        # date range over several days
+        search_re = ('{start}(?P<date1>{date}(\s+{time})?){end}--'
+                     '{start}(?P<date2>{date}(\s+{time})?){end}').format(
+            **self.DICT_RE)
+        match = re.search(search_re, value)
+        if match:
+            timed, weekdayed, self.value = self.parse_datetime(
+                match.group('date1'))
+            if timed:
+                self.format |= self.TIMED
+            if weekdayed:
+                self.format |= self.WEEKDAYED
+            timed, weekdayed, self.end = self.parse_datetime(
+                match.group('date2'))
+            self.format |= self.DATED | self.RANGED
+            return
+        # single date with no range
+        search_re = '{start}(?P<datetime>{date}(\s+{time})?){end}'.format(
+            **self.DICT_RE)
+        match = re.search(search_re, value)
+        if match:
+            timed, weekdayed, self.value = self.parse_datetime(
+                match.group('datetime'))
+            self.format |= self.DATED
+            if timed:
+                self.format |= self.TIMED
+            if weekdayed:
+                self.format |= self.WEEKDAYED
+            self.end = None
 
     def get_value(self):
         """
         Get the timestamp as a text according to the format
         """
+        fmt_dict = {'time': '%H:%M'}
         if self.format & self.ACTIVE:
-            pre = "<"
-            post = ">"
-        elif self.format & self.INACTIVE:
-            pre = "["
-            post = "]"
+            fmt_dict['start'], fmt_dict['end'] = '<', '>'
         else:
-            pre = ""
-            post = ""
-
-        if self.format & self.DATED:
-            # We have a dated event
-            dateformat = "%Y-%m-%d"
-            if self.format & self.WEEKDAYED:
-                # We have a weekday
-                dateformat = dateformat + " %a"
+            fmt_dict['start'], fmt_dict['end'] = '[', ']'
+        if self.format & self.WEEKDAYED:
+            fmt_dict['date'] = '%Y-%m-%d %a'
+        else:
+            fmt_dict['date'] = '%Y-%m-%d'
+        if self.format & self.RANGED:
+            if self.value[:3] == self.end[:3]:
+                # range is between two times on a single day
+                assert self.format & self.TIMED
+                return (time.strftime(
+                    '{start}{date} {time}-'.format(**fmt_dict), self.value) +
+                        time.strftime('{time}{end}'.format(**fmt_dict),
+                                      self.end))
+            else:
+                # range is between two days
+                if self.format & self.TIMED:
+                    return (time.strftime(
+                        '{start}{date} {time}{end}--'.format(**fmt_dict),
+                        self.value) +
+                            time.strftime(
+                                '{start}{date} {time}{end}'.format(**fmt_dict),
+                                self.end))
+                else:
+                    return (time.strftime(
+                        '{start}{date}{end}--'.format(**fmt_dict), self.value) +
+                            time.strftime(
+                                '{start}{date}{end}'.format(**fmt_dict),
+                                self.end))
+        else:
+            # non-ranged time
             if self.format & self.TIMED:
-                # We have a time also
-                dateformat = dateformat + " %H:%M"
-
-            return pre+time.strftime(dateformat,self.value)+post
-
-        elif self.format & self.TIMED:
-            # We have a time only
-            timestr = time.strftime("%H:%M",self.value)
-            if timestr[0] == '0':
-                return timestr[1:]
-            return pre+timestr+post
+                return time.strftime(
+                    '{start}{date} {time}{end}'.format(**fmt_dict), self.value)
+            else:
+                return time.strftime(
+                    '{start}{date}{end}'.format(**fmt_dict), self.value)
 
 class OrgPlugin:
     """
