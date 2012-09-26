@@ -417,10 +417,22 @@ class OrgNode(OrgPlugin):
     def __init__(self):
         OrgPlugin.__init__(self)
         self.regexp = re.compile("^(\*+)\s*(\[.*\])?\s*(.*)$")
+        self.todo_list = ['TODO', 'DONE']
         self.keepindent = False # If the line starts by an indent, it is not a node
     def _treat(self,current,line):
         heading = self.regexp.findall(line)
         if heading: # We have a heading
+            # Build the regexp for finding TODO items
+            if self.todo_list:
+                separator = ""
+                regexp_string = "^(\*+)\s*("
+                for todo_keyword in self.todo_list:
+                    regexp_string += separator
+                    separator = "|"
+                    regexp_string += todo_keyword
+                regexp_string += ")\s*(\[.*\])?\s*(.*)$"
+                self.regexp_todo = re.compile(regexp_string)
+                todo = self.regexp_todo.findall(line)
 
             if current.parent :
                 current.parent.append(current)
@@ -440,6 +452,9 @@ class OrgNode(OrgPlugin):
             current.heading = re.sub(":([\w]+):","",heading[0][2]) # Remove tags
             current.priority = heading[0][1]
             current.parent = parent
+
+            if todo: # This item has a todo associated with it
+                current.todo = todo[0][1]
                   
                   # Looking for tags
             heading_without_links = re.sub(" \[(.+)\]","",heading[0][2])
@@ -535,6 +550,36 @@ class OrgDataStructure(OrgElement):
         """
         for plugin in arguments:
             self.plugins.append(plugin)
+    def set_todo_states(self,new_todo_states):
+        """
+        Used to override the default list of todo states for any 
+        OrgNode plugins in this object's plugins list. Expects 
+        a list[] of strings as its argument.
+        Setting to an empty list will disable TODO checking.
+        """
+        for plugin in self.plugins:
+            if plugin.__class__ == OrgNode:
+                plugin.todo_list = new_todo_states
+    def get_todo_states(self):
+        """
+        Returns a list of lists of todo states, one entry for each instance
+        of OrgNode in this object's plugins list. An empty list means that
+        instance of OrgNode has TODO checking disabled.
+        """
+        all_todo_states = []
+        for plugin in self.plugins:
+            if plugin.__class__ == OrgNode:
+                all_todo_states.append(plugin.todo_list)
+        return all_todo_states
+    def add_todo_state(self, new_state):
+        """
+        Appends a todo state to the list of todo states of any OrgNode 
+        plugins in this objects plugins list.
+        Expects a string as its argument.
+        """
+        for plugin in self.plugins:
+            if plugin.__class__ == OrgNode:
+                plugin.todo_list.append(new_state)
     def load_from_file(self,name):
         """
         Used to load an org-file inside this DataStructure
