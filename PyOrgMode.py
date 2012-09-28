@@ -580,15 +580,20 @@ class OrgDataStructure(OrgElement):
         for plugin in self.plugins:
             if plugin.__class__ == OrgNode:
                 plugin.todo_list.append(new_state)
-    def load_from_file(self,name):
+    def load_from_file(self,name,form="file"):
         """
         Used to load an org-file inside this DataStructure
         """
         current = self.root
-        file = open(name,'r')
+        # Determine content type and put in appropriate form
+        if form == "file":
+            content = open(name,'r')
+        elif form == "string":
+            content = name.split("\n")
+        else:
+            raise ValueError
 
-        for line in file:
-            
+        for line in content:
             for plugin in self.plugins:
                 current = plugin.treat(current,line)
                 if plugin.treated: # Plugin found something
@@ -601,7 +606,12 @@ class OrgDataStructure(OrgElement):
 
         for plugin in self.plugins:
             current = plugin.close(current)
-        file.close()
+
+    def load_from_string(self, string):
+        """
+        A wrapper calling load_from_file but with a string instead of reading from a file.
+        """
+        self.load_from_file(string, "string")
 
     def save_to_file(self,name,node=None):
         """
