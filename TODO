@@ -5,7 +5,6 @@
 - [ ] Add some examples
 - [ ] Error/Warning managment
 - [ ] Check for other OS compatibility
-- [ ] Do a validator (input file MUST be output file, and check every function)
 - [ ] TODO tags (and others)
 - [ ] Add more types of data (List…)
 
@@ -15,7 +14,7 @@
 - [ ] Must use data validation
 - [ ] Must support recurrent events (+1w …)
 
---- Class OrgProtocol
+--- Class OrgList
 - [ ] Must be written
 
 --- Class OrgProtocol
