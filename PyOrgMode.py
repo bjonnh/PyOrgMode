@@ -667,13 +667,6 @@ class OrgDataStructure(OrgElement):
                     found = True
                     plugin.done_list.remove(old_state)
         return found
-    def extract_agenda(self, start, duration, todo_list):
-        """
-        Extract an agenda of headings that are marked with TODO states. 
-        First argument is the start of the agenda, second argument is duration,
-        third argument is the list of TODO states to look for.
-        """
-        pass
     def extract_todo_list(self, todo_list=None):
         """
         Extract a list of headings with TODO states specified by the first argument.
