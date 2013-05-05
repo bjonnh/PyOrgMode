@@ -483,7 +483,7 @@ class OrgNode(OrgPlugin):
                 current.todo = heading[0][1]
       
             # Looking for tags
-            heading_without_links = re.sub(" \[(.+)\]","",heading[0][2])
+            heading_without_links = re.sub(" \[(.+)\]","",heading[0][3])
             current.tags = re.findall(":([\w]+):",heading_without_links)
         else:
             self.treated = False
