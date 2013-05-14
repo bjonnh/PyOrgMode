@@ -194,12 +194,14 @@ setup(
       ACTIVE = 8
       INACTIVE = 16
       RANGED = 32
+      REPEAT = 64
   
       # TODO: Timestamp with repeater interval
       DICT_RE = {'start': '[[<]',
                  'end':   '[]>]',
                  'date':  '([0-9]{4})-([0-9]{2})-([0-9]{2})(\s+([\w]+))?',
-                 'time':  '([0-9]{2}):([0-9]{2})'}
+                 'time':  '([0-9]{2}):([0-9]{2})',
+                 'repeat': '[\+\.]{1,2}\d+[dwmy]'}
   
       def __init__(self,value=None):
           """
@@ -211,10 +213,10 @@ setup(
       def parse_datetime(self, s):
           """
           Parses an org-mode date time string.
-          Returns (timed, weekdayed, time_struct).
+          Returns (timed, weekdayed, time_struct, repeat).
           """
           search_re = '(?P<date>{date})(\s+(?P<time>{time}))?'.format(
-              **self.DICT_RE)
+              ,**self.DICT_RE)
           s = re.search(search_re, s)
           weekdayed = (len(s.group('date').split()) > 1)
           if s.group('time'):
@@ -259,7 +261,7 @@ setup(
           # date range over several days
           search_re = ('{start}(?P<date1>{date}(\s+{time})?){end}--'
                        '{start}(?P<date2>{date}(\s+{time})?){end}').format(
-              **self.DICT_RE)
+              ,**self.DICT_RE)
           match = re.search(search_re, value)
           if match:
               timed, weekdayed, self.value = self.parse_datetime(
@@ -273,12 +275,14 @@ setup(
               self.format |= self.DATED | self.RANGED
               return
           # single date with no range
-          search_re = '{start}(?P<datetime>{date}(\s+{time})?){end}'.format(
-              **self.DICT_RE)
+          search_re = '{start}(?P<datetime>{date}(\s+{time})?)(\s+(?P<repeat>{repeat}))?{end}'.format(**self.DICT_RE)
           match = re.search(search_re, value)
           if match:
               timed, weekdayed, self.value = self.parse_datetime(
                   match.group('datetime'))
+              if match.group('repeat'):
+                  self.repeat = match.group('repeat')
+                  self.format |= self.REPEAT
               self.format |= self.DATED
               if timed:
                   self.format |= self.TIMED
@@ -322,14 +326,18 @@ setup(
                               time.strftime(
                                   '{start}{date}{end}'.format(**fmt_dict),
                                   self.end))
-          else:
-              # non-ranged time
+          else: # non-ranged time
+              # Repeated
+              if self.format & self.REPEAT:
+                  fmt_dict['repeat'] = ' ' + self.repeat
+              else:
+                  fmt_dict['repeat'] = ''
               if self.format & self.TIMED:
                   return time.strftime(
-                      '{start}{date} {time}{end}'.format(**fmt_dict), self.value)
+                      '{start}{date} {time}{repeat}{end}'.format(**fmt_dict), self.value)
               else:
                   return time.strftime(
-                      '{start}{date}{end}'.format(**fmt_dict), self.value)
+                      '{start}{date}{repeat}{end}'.format(**fmt_dict), self.value)
   
 #+end_src
 **** Test
@@ -466,8 +474,29 @@ setup(
 
       def __str__(self):
           """ Used to return a text when called. """
-          return self.output()
-  
+          return self.output()  
+#+end_src
+*** Class OrgTodo
+**** Documentation
+**** Code
+#+srcname: class_OrgTodo
+#+begin_src python :tangle PyOrgMode.py :exports code
+  class OrgTodo():
+      """Describes an individual TODO item for use in agendas and TODO lists"""
+      def __init__(self, heading, todo_state,
+                   scheduled=None, deadline=None,
+                   tags=None, priority=None,
+                   path=[0]
+                   ):
+          self.heading = heading
+          self.todo_state = todo_state
+          self.scheduled = scheduled
+          self.deadline = deadline
+          self.tags = tags
+          self.priority = priority
+      def __str__(self):
+          string = self.todo_state + " " + self.heading
+          return string
 #+end_src
 *** Class OrgClock
 **** Documentation
@@ -703,23 +732,25 @@ setup(
   class OrgNode(OrgPlugin):
       def __init__(self):
           OrgPlugin.__init__(self)
-          self.regexp = re.compile("^(\*+)\s*(\[.*\])?\s*(.*)$")
-          self.todo_list = ['TODO', 'DONE']
+          self.todo_list = ['TODO']
+          self.done_list = ['DONE']
           self.keepindent = False # If the line starts by an indent, it is not a node
       def _treat(self,current,line):
+          # Build regexp
+          regexp_string = "^(\*+)\s*"
+          if self.todo_list:
+              separator = ""
+              re_todos = "("
+              for todo_keyword in self.todo_list + self.done_list:
+                  re_todos += separator
+                  separator = "|"
+                  re_todos += todo_keyword
+              re_todos += ")?\s*"
+              regexp_string += re_todos
+          regexp_string += "(\[.*\])?\s*(.*)$"
+          self.regexp = re.compile(regexp_string)
           heading = self.regexp.findall(line)
           if heading: # We have a heading
-              # Build the regexp for finding TODO items
-              if self.todo_list:
-                  separator = ""
-                  regexp_string = "^(\*+)\s*("
-                  for todo_keyword in self.todo_list:
-                      regexp_string += separator
-                      separator = "|"
-                      regexp_string += todo_keyword
-                  regexp_string += ")\s*(\[.*\])?\s*(.*)$"
-                  self.regexp_todo = re.compile(regexp_string)
-                  todo = self.regexp_todo.findall(line)
 
               if current.parent :
                   current.parent.append(current)
@@ -736,15 +767,14 @@ setup(
               # Creating a new node and assigning parameters
               current = OrgNode.Element() 
               current.level = len(heading[0][0])
-              current.heading = re.sub(":([\w]+):","",heading[0][2]) # Remove tags
-              current.priority = heading[0][1]
+              current.heading = re.sub(":([\w]+):","",heading[0][3]) # Remove tags
+              current.priority = heading[0][2].strip('[#]')
               current.parent = parent
-  
-              if todo: # This item has a todo associated with it
-                  current.todo = todo[0][1]
-                    
-                    # Looking for tags
-              heading_without_links = re.sub(" \[(.+)\]","",heading[0][2])
+              if heading[0][1]:
+                  current.todo = heading[0][1]
+        
+              # Looking for tags
+              heading_without_links = re.sub(" \[(.+)\]","",heading[0][3])
               current.tags = re.findall(":([\w]+):",heading_without_links)
           else:
               self.treated = False
@@ -773,11 +803,14 @@ setup(
               
               if hasattr(self,"level"):
                   output = output + "*"*self.level
-    
+
+              if hasattr(self, "todo"):
+                  output = output + " " + self.todo
+
               if self.parent is not None:
                   output = output + " "
                   if self.priority:
-                      output = output + self.priority + " "
+                      output = output + "[#" + self.priority + "] "
                   output = output + self.heading
     
                   for tag in self.tags:
@@ -846,27 +879,61 @@ setup(
           """
           for plugin in arguments:
               self.plugins.append(plugin)
-      def set_todo_states(self,new_todo_states):
+      def set_todo_states(self,new_states):
           """
           Used to override the default list of todo states for any 
           OrgNode plugins in this object's plugins list. Expects 
-          a list[] of strings as its argument.
+          a list[] of strings as its argument. The list can be split
+          by '|' entries into TODO items and DONE items. Anything after
+          a second '|' will not be processed and be returned.
           Setting to an empty list will disable TODO checking.
           """
+          new_todo_states = []
+          new_done_states = []
+          num_lists = 1
+          # Process the first part of the list (delimited by '|')
+          for new_state in new_states:
+              if new_state == '|':
+                  num_lists += 1
+                  break
+              new_todo_states.append(new_state)
+          # Clean up the lists so far
+          if num_lists > 1:
+              new_states.remove('|')
+          for todo_state in new_todo_states:
+              new_states.remove(todo_state)
+          # Process the second part of the list (delimited by '|')
+          for new_state in new_states:
+              if new_state == '|':
+                  num_lists += 1
+                  break
+              new_done_states.append(new_state)
+          # Clean up the second list
+          if num_lists > 2:
+              new_states.remove('|')
+          for todo_state in new_done_states:
+              new_states.remove(todo_state)
+          # Write the relevant attributes
           for plugin in self.plugins:
               if plugin.__class__ == OrgNode:
                   plugin.todo_list = new_todo_states
-      def get_todo_states(self):
+                  plugin.done_list = new_done_states
+          if new_states:
+              return new_states # Return any leftovers  
+      def get_todo_states(self, list_type="todo"):
           """
-          Returns a list of lists of todo states, one entry for each instance
-          of OrgNode in this object's plugins list. An empty list means that
-          instance of OrgNode has TODO checking disabled.
+          Returns a list of todo states. An empty list means that
+          instance of OrgNode has TODO checking disabled. The first argument
+          determines the list that is pulled ("todo"*, "done" or "all").
           """
-          all_todo_states = []
+          all_states = []
           for plugin in self.plugins:
               if plugin.__class__ == OrgNode:
-                  all_todo_states.append(plugin.todo_list)
-          return all_todo_states
+                  if plugin.todo_list and (list_type == "todo" or list_type == "all"):
+                      all_states += plugin.todo_list
+                  if plugin.done_list and (list_type == "done" or list_type == "all"):
+                      all_states += plugin.done_list
+          return list(set(all_states))
       def add_todo_state(self, new_state):
           """
           Appends a todo state to the list of todo states of any OrgNode 
@@ -876,15 +943,81 @@ setup(
           for plugin in self.plugins:
               if plugin.__class__ == OrgNode:
                   plugin.todo_list.append(new_state)
-      def load_from_file(self,name):
+      def add_done_state(self, new_state):
+          """
+          Appends a todo state to the list of todo states of any OrgNode 
+          plugins in this objects plugins list.
+          Expects a string as its argument.
+          """
+          for plugin in self.plugins:
+              if plugin.__class__ == OrgNode:
+                  plugin.done_list.append(new_state)
+      def remove_todo_state(self, old_state):
+          """
+          Remove a given todo state from both the todo list and the done list.
+          Returns True if the plugin was actually found.
+          """
+          found = False
+          for plugin in self.plugins:
+              if plugin.__class__ == OrgNode:
+                  while old_state in plugin.todo_list:
+                      found = True
+                      plugin.todo_list.remove(old_state)
+                  while old_state in plugin.done_list:
+                      found = True
+                      plugin.done_list.remove(old_state)
+          return found
+      def extract_todo_list(self, todo_list=None):
+          """
+          Extract a list of headings with TODO states specified by the first argument.
+          """
+          if todo_list == None: # Set default
+              # Kludge to get around lack of self in function declarations
+              todo_list = self.get_todo_states()
+          else:
+              # Check to make sure all todo_list items are registered
+              # with the OrgNode plugin
+              for possible_state in todo_list:
+                  if possible_state not in self.get_todo_states("all"):
+                      raise ValueError("State " + possible_state + " not registered. See PyOrgMode.OrgDataStructure.add_todo_state.")
+          results_list = []
+          # Recursive function that steps through each node in current level,
+          # looking for TODO items and then calls itself to look for 
+          # TODO items one level down.
+          def extract_from_level(content):
+              for node in content:
+                  # Check if it's a TODO item and add to results
+                  try:
+                      current_todo = node.todo
+                  except AttributeError:
+                      pass
+                  else: # Handle it
+                      if current_todo in todo_list:
+                          new_todo = OrgTodo(node.heading, node.todo)
+                          results_list.append(new_todo)
+                  # Now check if it has sub-headings
+                  try:
+                      next_content = node.content
+                  except AttributeError:
+                      pass
+                  else: # Hanble it
+                      extract_from_level(next_content)
+          extract_from_level(self.root.content)
+          return results_list
+      def load_from_file(self,name,form="file"):
           """
           Used to load an org-file inside this DataStructure
           """
           current = self.root
-          file = open(name,'r')
+          # Determine content type and put in appropriate form
+          if form == "file":
+              content = open(name,'r')
+          elif form == "string":
+              content = name.split("\n")
+          else:
+              raise ValueError("Form \""+form+"\" not recognized")
   
-          for line in file:
-              
+          for line in content:
               for plugin in self.plugins:
                   current = plugin.treat(current,line)
                   if plugin.treated: # Plugin found something
@@ -897,7 +1030,11 @@ setup(
   
           for plugin in self.plugins:
               current = plugin.close(current)
-          file.close()
+      def load_from_string(self, string):
+          """
+          A wrapper calling load_from_file but with a string instead of reading from a file.
+          """
+          self.load_from_file(string, "string")
   
       def save_to_file(self,name,node=None):
           """

@@ -515,7 +515,7 @@ class OrgNode(OrgPlugin):
 
             if hasattr(self, "todo"):
                 output = output + " " + self.todo
-                
+
             if self.parent is not None:
                 output = output + " "
                 if self.priority:
@@ -619,7 +619,7 @@ class OrgDataStructure(OrgElement):
                 plugin.todo_list = new_todo_states
                 plugin.done_list = new_done_states
         if new_states:
-            return new_states # Return any leftovers
+            return new_states # Return any leftovers  
     def get_todo_states(self, list_type="todo"):
         """
         Returns a list of todo states. An empty list means that
@@ -715,7 +715,7 @@ class OrgDataStructure(OrgElement):
         elif form == "string":
             content = name.split("\n")
         else:
-            raise ValueError("Form \""+form+"\" not recognized") 
+            raise ValueError("Form \""+form+"\" not recognized")
 
         for line in content:
             for plugin in self.plugins:
@@ -730,7 +730,6 @@ class OrgDataStructure(OrgElement):
 
         for plugin in self.plugins:
             current = plugin.close(current)
-
     def load_from_string(self, string):
         """
         A wrapper calling load_from_file but with a string instead of reading from a file.
