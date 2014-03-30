@@ -28,7 +28,6 @@ representation of the file allows the use of orgfiles easily in your projects.
 
 import re
 import string
-import copy
 import time
 
 class OrgDate:
@@ -263,7 +262,7 @@ class OrgTodo():
     """Describes an individual TODO item for use in agendas and TODO lists"""
     def __init__(self, heading, todo_state,
                  scheduled=None, deadline=None,
-                 tags=None, priority=None,
+                 tags=None, priority=None, node=None,
                  path=[0]
                  ):
         self.heading = heading
@@ -272,6 +271,7 @@ class OrgTodo():
         self.deadline = deadline
         self.tags = tags
         self.priority = priority
+        self.node = node
     def __str__(self):
         string = self.todo_state + " " + self.heading
         return string
@@ -484,7 +484,9 @@ class OrgNode(OrgPlugin):
       
             # Looking for tags
             heading_without_links = re.sub(" \[(.+)\]","",heading[0][3])
-            current.tags = re.findall(":([\w]+):",heading_without_links)
+
+            matches = re.finditer(r'(?=:([\w]+):)',heading_without_links)
+            [current.tags.append(match.group(1)) for match in matches]
         else:
             self.treated = False
         return current
@@ -693,7 +695,7 @@ class OrgDataStructure(OrgElement):
                     pass
                 else: # Handle it
                     if current_todo in todo_list:
-                        new_todo = OrgTodo(node.heading, node.todo)
+                        new_todo = OrgTodo(node.heading, node.todo, tags=node.tags,priority=node.priority, node=node)
                         results_list.append(new_todo)
                 # Now check if it has sub-headings
                 try:
@@ -722,7 +724,7 @@ class OrgDataStructure(OrgElement):
                 current = plugin.treat(current,line)
                 if plugin.treated: # Plugin found something
                     treated = True
-                    break;
+                    break
                 else:
                     treated = False
             if not treated and line is not None: # Nothing special, just content
@@ -745,3 +747,57 @@ class OrgDataStructure(OrgElement):
             node = self.root
         output.write(str(node))
         output.close()
+
+
+    @staticmethod
+    def parse_heading(heading):
+        heading = heading.strip()
+        r = re.compile('(.*)(?:\s+\[(\d+)/(\d+)\])(?:\s+)?')
+        m = r.match(heading)
+        if m:
+            return {'heading': m.group(1),
+                    'todo_done': m.group(2),
+                    'todo_total': m.group(3)}
+        else:
+            return {'heading': heading}
+
+
+    @staticmethod
+    def get_nodes_by_priority(node, priority, found_nodes=[]):
+
+        # print "start of get_nodes_by_priority"
+        # print " node instance type: %s" % node.__class__.__name__
+
+        if isinstance(node, OrgElement):
+            # print " node.heading: %s" % node.heading
+            try:
+                if node.todo and node.priority == priority:
+                    found_nodes.append(node)
+                    #return found_nodes
+            except AttributeError:
+                # TODO: This could be a Property.  Handle it!
+                pass
+
+            for node in node.content:
+                OrgDataStructure.get_nodes_by_priority(node, priority, found_nodes)
+            return found_nodes
+        else:
+            return found_nodes
+
+    @staticmethod
+    def get_node_by_heading(node, heading, found_nodes=[]):
+
+        if isinstance(node, OrgElement):
+            try:
+                heading_dict = OrgDataStructure.parse_heading(node.heading)
+                if heading_dict['heading'] == heading.strip():
+                    found_nodes.append(node)
+            except AttributeError:
+                # TODO: This could be a Property.  Handle it!
+                pass
+
+            for node in node.content:
+                OrgDataStructure.get_node_by_heading(node, heading, found_nodes)
+            return found_nodes
+        else:
+            return found_nodes
