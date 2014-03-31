@@ -456,7 +456,7 @@ class OrgNode(OrgPlugin):
                 re_todos += todo_keyword
             re_todos += ")?\s*"
             regexp_string += re_todos
-        regexp_string += "(\[.*\])?\s*(.*)$"
+        regexp_string += "(\[.*?\])?\s*(.*)$"
         self.regexp = re.compile(regexp_string)
         heading = self.regexp.findall(line)
         if heading: # We have a heading
