@@ -1,5 +1,6 @@
 
 --- General
+- [ ] Move tests to separate directory
 - [ ] Add a documentation system (finding a way for html and pdf export ?)
 - [ ] Document every function correctly (docstrings)
 - [ ] Add some examples
