@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name = 'PyOrgMode',
     packages = ['PyOrgMode'], # this must be the same as the name above
-    version = '0.03b',
+    version = '0.1',
     description = 'Library to interact with org-mode from python',
     author = 'Jonathan BISSON',
     author_email = 'gonvaled@gonvaled.com', # I do not know the email address of the author
