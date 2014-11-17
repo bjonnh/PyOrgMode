@@ -264,7 +264,7 @@ class OrgTodo():
     def __init__(self, heading, todo_state,
                  scheduled=None, deadline=None,
                  tags=None, priority=None,
-                 path=[0]
+                 path=[0], node=None
                  ):
         self.heading = heading
         self.todo_state = todo_state
@@ -272,6 +272,7 @@ class OrgTodo():
         self.deadline = deadline
         self.tags = tags
         self.priority = priority
+        self.node = node
     def __str__(self):
         string = self.todo_state + " " + self.heading
         return string
@@ -693,7 +694,7 @@ class OrgDataStructure(OrgElement):
                     pass
                 else: # Handle it
                     if current_todo in todo_list:
-                        new_todo = OrgTodo(node.heading, node.todo)
+                        new_todo = OrgTodo(node.heading, node.todo, node=node)
                         results_list.append(new_todo)
                 # Now check if it has sub-headings
                 try:
