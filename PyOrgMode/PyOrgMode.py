@@ -454,7 +454,7 @@ class OrgNode(OrgPlugin):
             for todo_keyword in self.todo_list + self.done_list:
                 re_todos += separator
                 separator = "|"
-                re_todos += todo_keyword
+                re_todos += todo_keyword + "\s+"
             re_todos += ")?\s*"
             regexp_string += re_todos
         regexp_string += "(\[.*\])?\s*(.*)$"
