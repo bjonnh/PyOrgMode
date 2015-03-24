@@ -41,12 +41,14 @@ class OrgDate:
     INACTIVE = 16
     RANGED = 32
     REPEAT = 64
+    CLOCKED= 128
 
     # TODO: Timestamp with repeater interval
     DICT_RE = {'start': '[[<]',
                'end':   '[]>]',
                'date':  '([0-9]{4})-([0-9]{2})-([0-9]{2})(\s+([\w]+))?',
                'time':  '([0-9]{2}):([0-9]{2})',
+               'clock': '([0-9]{1}):([0-9]{2})',
                'repeat': '[\+\.]{1,2}\d+[dwmy]'}
 
     def __init__(self,value=None):
@@ -135,6 +137,12 @@ class OrgDate:
             if weekdayed:
                 self.format |= self.WEEKDAYED
             self.end = None
+        # clocked time
+        search_re = '(?P<clocked>{clock})'.format(**self.DICT_RE)
+        match = re.search(search_re, value)
+        if match:
+            self.value = value
+            self.format |= self.CLOCKED 
 
     def get_value(self):
         """
@@ -147,6 +155,8 @@ class OrgDate:
             fmt_dict['start'], fmt_dict['end'] = '[', ']'
         if self.format & self.WEEKDAYED:
             fmt_dict['date'] = '%Y-%m-%d %a'
+        if self.format & self.CLOCKED:
+            fmt_dict['clock'] = "%H:%M"
         else:
             fmt_dict['date'] = '%Y-%m-%d'
         if self.format & self.RANGED:
@@ -172,6 +182,9 @@ class OrgDate:
                             time.strftime(
                                 '{start}{date}{end}'.format(**fmt_dict),
                                 self.end))
+        if self.format & self.CLOCKED:
+            # clocked time, return as is
+            return self.value
         else: # non-ranged time
             # Repeated
             if self.format & self.REPEAT:
