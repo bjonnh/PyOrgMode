@@ -46,17 +46,16 @@ class OrgDate:
     # TODO: Timestamp with repeater interval
     DICT_RE = {'start': '[[<]',
                'end':   '[]>]',
-               'date':  '([0-9]{4})-([0-9]{2})-([0-9]{2})(\s+([\w]+))?',
+               'date':  '([0-9]{4})-([0-9]{2})-([0-9]{2})(\s+([\w.]+))?',
                'time':  '([0-9]{2}):([0-9]{2})',
                'clock': '([0-9]{1}):([0-9]{2})',
                'repeat': '[\+\.]{1,2}\d+[dwmy]'}
 
-    def __init__(self,value=None):
+    def __init__(self, value=None):
         """
         Initialisation of an OrgDate element.
         """
-        if value != None:
-            self.set_value(value)
+        self.set_value(value)
 
     def parse_datetime(self, s):
         """
@@ -66,22 +65,35 @@ class OrgDate:
         search_re = '(?P<date>{date})(\s+(?P<time>{time}))?'.format(
             **self.DICT_RE)
         s = re.search(search_re, s)
+        
         weekdayed = (len(s.group('date').split()) > 1)
+        weekday_suffix = ""
+        if weekdayed is True:
+            weekday_suffix = s.group('date').split()[1]
+        formats = {'timed_dated':[True, '{0} {1} {2}', '%Y-%m-%d %a %H:%M'],
+         'timed':[True, '{0} {2}', '%Y-%m-%d %H:%M'],
+         'nottimed_dated':[False, '{0} {1}', '%Y-%m-%d %a'],
+         'notdated':[False, '{0}', '%Y-%m-%d'],
+        }
         if s.group('time'):
-            return (True,
-                    weekdayed,
-                    time.strptime(
-                        s.group('date').split()[0] + ' ' + s.group('time'),
-                        '%Y-%m-%d %H:%M'))
+            if weekday_suffix == "":
+                format_date = 'timed'
+            else:
+                format_date = 'timed_dated'
         else:
-            return (False,
-                    weekdayed,
-                    time.strptime(s.group('date').split()[0], '%Y-%m-%d'))
+            if weekday_suffix == "":
+                format_date = 'notdated'
+            else:
+                format_date = 'nottimed_dated'
+
+        return (formats[format_date][0], weekdayed,
+                time.strptime(formats[format_date][1].format(s.group('date').split()[0], weekday_suffix, s.group('time')),formats[format_date][2]))
 
     def set_value(self,value):
         """
         Setting the value of this element (automatic recognition of format)
         """
+        self.value = None # By default…
         # Checking whether it is an active date-time or not
         if value[0] == '<':
             self.format |= self.ACTIVE
@@ -92,6 +104,7 @@ class OrgDate:
         search_re = ('{start}(?P<date>{date})\s+(?P<time1>{time})'
                      '-(?P<time2>{time}){end}').format(**self.DICT_RE)
         match = re.search(search_re, value)
+
         if match:
             #timed, weekdayed, date = self.parse_datetime(match.group('date'))
             #self.value = time.strptime(match.group('time1').split()[0], '%H:%M')
@@ -137,6 +150,7 @@ class OrgDate:
             if weekdayed:
                 self.format |= self.WEEKDAYED
             self.end = None
+            return
         # clocked time
         search_re = '(?P<clocked>{clock})'.format(**self.DICT_RE)
         match = re.search(search_re, value)
@@ -148,6 +162,10 @@ class OrgDate:
         """
         Get the timestamp as a text according to the format
         """
+
+        if self.value is None:
+            return ""
+        
         fmt_dict = {'time': '%H:%M'}
         if self.format & self.ACTIVE:
             fmt_dict['start'], fmt_dict['end'] = '<', '>'
@@ -157,7 +175,7 @@ class OrgDate:
             fmt_dict['date'] = '%Y-%m-%d %a'
         if self.format & self.CLOCKED:
             fmt_dict['clock'] = "%H:%M"
-        else:
+        elif not self.format & self.WEEKDAYED:
             fmt_dict['date'] = '%Y-%m-%d'
         if self.format & self.RANGED:
             if self.value[:3] == self.end[:3]:
@@ -293,7 +311,7 @@ class OrgClock(OrgPlugin):
     """Plugin for Clock elements"""
     def __init__(self):
         OrgPlugin.__init__(self)
-        self.regexp = re.compile("(?:\s*)CLOCK:(?:\s*)((?:<|\[).*(?:>||\]))--((?:<|\[).*(?:>||\])).*=>\s*(.*)")
+        self.regexp = re.compile("(?:\s*)CLOCK:(?:\s*)((?:<|\[).*(?:>||\]))--((?:<|\[).*(?:>||\])).+=>\s*(.*)")
     def _treat(self,current,line):
         clocked = self.regexp.findall(line)
         if clocked:

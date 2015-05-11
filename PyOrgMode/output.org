@@ -1,7 +1,618 @@
-This is an orgmode file with no headlines *test*
-
-*Test*
-
-edtedp
-
+* Table test
+| elsbl    | lesél | lseilép |
+|----------+-------+---------|
+| dlitsléb | 10    | 20      |
+| eietl    | letil | lielt   |
+* Scheduling Test
+** DEADLINE SCHEDULED CLOCK combo
+	 SCHEDULED: <2011-04-01 ven.> DEADLINE: <2011-04-04 lun.> CLOSED: [2011-04-05 mar. 19:20]
+** DEADLINE
+DEADLINE: <2010-10-10>
+** SCHEDULED
+SCHEDULED: <2010-10-10>
+** CLOCK
+   CLOCK: [2011-02-27 dim. 19:50]--[2011-02-27 dim. 19:51] =>  0:01
+   CLOCK: [2011-02-27 dim. 19:50]--[2011-02-27 dim. 19:50] =>  0:00
+   CLOCK: [2011-02-27 dim. 19:50]--[2011-02-27 dim. 19:50] =>  0:00
+   :PROPERTIES:
+   :ORDERED: t
+   :CLOCKSUM: 0
+   :END:
 Test
+* TAGS TEST :TAG1::TAG2:
+** TAGS :TAG1:
+** TAGS :TAG1::TAG2:
+
+
+* Priority
+** [#A] A :a:
+** [#B] B :b:
+** [#C] C :c:
+* Autre format de ces prises de notes:
+:PROPERTIES:
+:ID: 1
+et
+:END:
+  - [[http://www.piprime.fr/files/articles/emacs/org/org.org][code source au format org]]
+  - [[http://www.piprime.fr/files/articles/emacs/org/org.pdf][le pdf généré à partir de l'export en LaTeX]]
+  - [[http://www.piprime.fr/files/articles/emacs/org/org.pdf][l'export en LaTeX]] pour les très curieux ;-)
+  - [[http://www.piprime.fr/files/articles/emacs/org/org.png][Une copie d'écran]] et [[http://www.piprime.fr/files/articles/emacs/org/org1.png][une deuxième]] montrant le rendu du fichier org.org en cours d'édition dans Emacs.
+
+* Introduction
+** Résumé
+   [[http://orgmode.org/][Org]] est un mode pour /Emacs/ qui permet entre autre de prendre des notes, de maintenir
+   des /TODOs/ ainsi que de planifier efficacement des projets complexes.
+   Plus d'information dans [[http://orgmode.org/manual/Summary.html][la documentation officielle]]
+** Installation et configuration
+   Org fait parti d'/Emacs/ depuis la version 22, je ne détaillerais donc pas son installation.
+   La configuration de base préconisée par la documentation officielle suit:
+#+begin_src emacs-lisp
+   (require 'org-install)
+   (add-to-list 'auto-mode-alist '("\\.org$" . org-mode))
+   (define-key global-map "\C-cl" 'org-store-link)
+   (define-key global-map "\C-ca" 'org-agenda)
+   (setq org-log-done t)
+#+end_src
+
+
+* Structure des documents
+** /Outlines/
+   /Org/ est implémenté au-dessus du mode [[http://www.gnu.org/software/emacs/manual/html_node/emacs/Outline-Mode.html][Outline Mode]] qui permet
+   d'éditer des lignes longues. Cela permet aux documents d'être
+   organisé dans une structure hiérarchique donnant ainsi une meilleure
+   représentation des notes et des idées.
+   /Org/ simplifie notablement l'usage du mode /outline/ en rassemblant
+   toutes les fonctionnalités de masquage/affichage en une seule
+   commande =org-cycle=, qui est accessible via le raccourci <TAB>.
+
+** Sections
+   Les sections d'un document sont hiérarchisées à l'aide
+   d'étoiles. Par exemple:
+
+   : * Section 1
+   : ** Sous-section 1
+   : *** Sous-sous-section 1
+   :     Du texte…
+   : *** Sous-sous-section 2
+   :     Du texte…
+   :
+   : ** Sous-section 2
+   : *** Sous-sous-section 1
+   :     Du texte…
+   : *** Sous-sous-section 2
+   :     Du texte…
+   :
+   : * Section 2
+   : etc…
+
+   Si l'on préfère une vue de ce type…
+
+   : * Top level headline
+   :   * Second level
+   :     * 3rd level
+   :       some text
+   :     * 3rd level
+   :       more text
+   : * Another top level headline
+   :
+   …on peut, à partir de /Emacs 23.1.50.3/ et /Org 6.29/, utiliser le
+   mode =org-indent-mode= ou mettre dans le fichier où l'on désire ce
+   comportement la ligne de configuration =#+STARTUP: indent=. Plus
+   d'information sur ce type de vue se trouve à la section
+   [[http://orgmode.org/manual/Clean-view.html#Clean-view][A cleaner outline view]] de la documentation officielle.
+** Rotation cyclique de la visibilité
+   Il est possible de cacher certaines parties du texte dans le buffer
+   afin d'en dégager la structure. Les deux principaux raccourcis pour
+   cela sont =<TAB>= (rotation sur le nœud courant) et =<S-TAB>= (rotation
+   sur l'ensemble du buffer).
+   Pour voir l'ensemble du buffer, on peut utiliser =C-u C-u C-u <TAB>=
+   Enfin, lors de la première visite d'un buffer il est possible de
+   paramétré le type de contenu que l'on veut voir par défaut:
+
+   : #+STARTUP: overview
+   : #+STARTUP: content
+   : #+STARTUP: showall
+   : #+STARTUP: showeverything
+
+   Plus d'information sur ces fonctionnalités à la section
+   [[http://orgmode.org/manual/Visibility-cycling.html#Visibility-cycling][Visibility cycling]] de la documentation officielle.
+
+** Les raccourcis de déplacement
+   Les commandes suivantes permettent de naviguer rapidement dans le
+   buffer.
+
+   - *C-c C-n* ::
+     Section suivante ;
+   - *C-c C-p* ::
+     Section précédente ;
+   - *C-c C-f* ::
+     Section suivante de même niveau ;
+   - *C-c C-b* ::
+     Section précédente de même niveau ;
+   - *C-c C-u* ::
+     Retourne au niveau le plus haut.
+   - *C-c C-j* ::
+     Place le document dans un buffer temporaire où l'on
+     peut naviguer rapidement à l'aide de touches prédéfinies rappelées
+     ci-dessous. Cette fonctionnalité est très appréciable pour de
+     gros documents.
+
+     :   <TAB>         Cycle visibility.
+     :   <down> / <up> Next/previous visible headline.
+     :   <RET>         Select this location.
+     :   /             Do a Sparse-tree search.
+     :   The following keys work if you turn off org-goto-auto-isearch.
+     :   n / p         Next/previous visible headline.
+     :   f / b         Next/previous headline same level.
+     :   u             One level up.
+     :   0-9           Digit argument.
+     :   q             Quit.
+
+** Les raccourcis d'édition
+   Voici la description sommaire des *principaux* raccourcis d'édition. Pour une
+   description complète et exhaustive on peut toujours se référer à la section
+   [[http://orgmode.org/manual/Structure-editing.html#Structure-editing][Structure editing]] de la documentation officielle.
+
+   - *M-<RET>* ::
+     Insère une nouvelle rubrique (section, description etc) de même niveau que le niveau actuel.
+   - *C-<RET>* ::
+     Comme *M-<RET>*, sauf que la rubrique est ajoutée au niveau
+     inférieur.
+   - *M-S-<RET>* ::
+     Insère un nouveau /TODO/ au même niveau que le niveau actuel.
+   - *C-S-<RET>* ::
+     Comme *M-S-<RET>* mais au niveau inférieur.
+   - *<TAB>* :: (dans un nouvelle entrée vide)
+                Dans une nouvelle entrée, sans encore de texte, le premier
+                *<TAB>* fait devenir l'entrée un enfant de la précédente. Le *<TAB>* suivant la fait
+                devenir… je n'ai pas compris (voir la doc ou essayer).
+   - *M-<left>* ::
+     Descend *tout* le niveau courant d'un niveau.
+   - *M-<right>* ::
+     Augmente *tout* le niveau courant d'un niveau.
+   - *M-S-<left>* ::
+     Descend seulement l'entrée courante d'un niveau.
+   - *M-S-<right>* ::
+     Augmente seulement l'entrée courante d'un niveau.
+   - *M-S-<up>* ::
+     Déplace l'entrée courante au-dessus de l'entrée de même niveau.
+   - *M-S-<down>* ::
+     Idem vers le bas.
+   - *C-c C-x C-w* ::
+     Supprime l'entrée courante et la place dans le /kill ring/.
+   - *C-c C-x M-w* ::
+     Copie l'entrée courante dans le /kill ring/.
+   - *C-c C-x C-y* ::
+     Colle une entrée depuis le /kill ring/.
+   - *C-c C-x c* ::
+     Clone une entrée.
+   - *C-c C-w* ::
+     Déplace l'entrée courante ou la région à un autre endroit. Voir [[http://orgmode.org/manual/Refiling-notes.html#Refiling-notes][Refiling notes]].
+   - *C-c ^* ::
+     Trie les entrées de même niveau.
+
+** Arbres partiels
+   /Org/ est capable de construire un arbre partiel à partir d'une
+   information donnée de tel manière que la totalité du document soit
+   replié à l'exception des parties contenant l'information cherchée.
+   Essayez le et vous comprendrez ; les commandes pour construire un
+   arbre partiel sont accessibles par *C-c /*, en particulier
+   *C-c / r* permet de construire un aperçu des correspondances à une
+   expression rationnelle donnée.
+
+   Pour un usage répété d'une recherche, il est possible de définir une
+   touche d'accès rapide accessible via le répartiteur d'agenda (vois
+   [[agenda-dispatcher][Agenda Dispatcher]] pour plus d'information).
+#+BEGIN_SRC emacs-lisp
+   (setq org-agenda-custom-commands
+   '(("f" occur-tree "FIXME")))
+#+END_SRC
+   définie le « rat Courci » *C-c a f* pour créer un aperçu de
+   l'arborescence qui trouve une correspondance avec  /FIXME/.
+
+   Les différentes commandes possibles seront expliquées ultérieurement,
+   lorsque seront expliqué les notions de /tags/ et de /properties/.
+
+   Enfin, pour imprimer un arbre partiel tel qu'il apparaît, on peut
+   utiliser la commande =ps-print-buffer-with-faces= car elle n'imprime
+   pas les parties invisibles. On peut aussi utiliser *C-c C-e v* pour
+   exporter seulement la partie visible puis imprimer le résultat.
+
+   Pour plus d'information sur cette section, se reporter à la partie
+   [[http://orgmode.org/manual/Sparse-trees.html#Sparse-trees][Sparse trees]] de la documentation officielle.
+
+** Les listes
+   Il est possible de formater des listes à la main. En effet /Org/
+   reconnaît les listes non ordonnées, les listes numérotées et les
+   descriptions.
+   - Les listes à puces sont marquées avec les symbole '-' ou '+',
+     éventuellement * (malgré que ce soit déconseillé) ;
+   - les listes numérotées commences par un numéro suivit d'un
+     point « 1. 2. etc » ou d'une parenthèse « 1) 2) etc ».
+   - les descriptions sont identiques au listes non ordonnées mais
+     la description est suivi du séparateur ::
+
+     Voici un exemple de listes:
+     :     ** Lord of the Rings
+     :        My favorite scenes are (in this order)
+     :        1. The attack of the Rohirrim
+     :        2. Eowyn's fight with the witch king
+     :           + this was already my favorite scene in the book
+     :           + I really like Miranda Otto.
+     :        3. Peter Jackson being shot by Legolas
+     :            - on DVD only
+     :           He makes a really funny face when it happens.
+     :        But in the end, no individual scenes matter but the film as a whole.
+     :        Important actors in this film are:
+     :        - Elijah Wood :: He plays Frodo
+     :        - Sean Austin :: He plays Sam, Frodo's friend.  I still remember
+     :          him very well from his role as Mikey Walsh in The Goonies.
+
+     Il existe beaucoup de raccourcis claviers très utiles pour manipuler
+     les listes mais le plus important d'entre eux est sûrement *M-<RET>*
+     qui permet de passer à la ligne en ajoutant une nouvelle entrée à la
+     liste.
+
+     Pour plus d'information sur les listes et les raccourcis associés, se
+     reporter à la section [[http://orgmode.org/manual/Plain-lists.html#Plain-lists][Plain lists]] de la documentation officielle.
+** Drawers [[#marqueurs]]
+   TODO http://orgmode.org/manual/Drawers.html#Drawers
+** Blocks
+** Footnotes
+** The Orgstruct minor mode
+
+
+* Tables <<My Target>>
+** The built-in table editor
+** Column width and alignment
+** Column groups
+** The Orgtbl minor mode
+** The spreadsheet
+*** References
+*** Formula syntax for Calc
+*** Emacs Lisp forms as formulas
+*** Field formulas
+*** Column formulas
+*** Editing and debugging formulas
+*** Updating the table
+*** Advanced features
+** Org-Plot
+
+
+* Hyperlinks
+  **Link format
+** Internal links
+*** Radio targets
+** External links
+** Handling links
+** Using links outside Org
+** Link abbreviations
+** Search options in file links
+** Custom Searches
+
+
+* TODO Items
+** Basic TODO functionality
+** Extended use of TODO keywords
+*** TODO keywords as workflow states
+*** TODO keywords as types
+*** Multiple keyword sets in one file
+*** Fast access to TODO states
+*** Setting up keywords for individual files
+*** Faces for TODO keywords
+*** TODO dependencies
+** Progress logging
+*** Closing items
+*** Tracking TODO state changes
+*** Tracking your habits
+** Priorities
+** Breaking tasks down into subtasks
+** Checkboxes
+
+
+* Tags
+** Tag inheritance
+** Setting tags
+** Tag searches
+
+
+* Propriétés et colonnes
+** Syntaxe des propriétés
+   Les propriétés sont des paires clé-valeur. Elles doivent être
+   insérées entre des marqueurs spéciaux (voir [[#marqueurs][Marqueurs]]) dont le nom
+   est /PROPERTIES/. Chaque propriété est spécifiée sur une seule ligne, avec la
+   clé (entouré par deux-points) suivie de sa valeur. Voici un
+   exemple :
+
+   : * CD collection
+   : ** Classic
+   : *** Goldberg Variations
+   :     :PROPERTIES:
+   :     :Title:     Goldberg Variations
+   :     :Composer:  J.S. Bach
+   :     :Artist:    Glen Gould
+   :     :Publisher: Deutsche Grammophon
+   :     :NDisks:    1
+   :     :END:
+
+   Il est possible de définir les valeurs autorisées pour une
+   propriété donnée, disons ':xyz:', en définissant une propriété
+   ':xyz_ALL:'. Cette propriété particulière est héritée sur la
+   suite de l'arborescence. Lorsque les valeurs autorisées sont
+   définies, il devient plus facile d'insérer les propriétés et cela
+   évite les erreurs de frappe.
+   Pour l'exemple, pour une collection de CD, on peut prédéfinir
+   les éditeurs et le nombre de disques dans une boîte comme ceci:
+
+   : * CD collection
+   :   :PROPERTIES:
+   :   :NDisks_ALL:  1 2 3 4
+   :   :Publisher_ALL: "Deutsche Grammophon" Philips EMI
+   :   :END:
+
+   Si l'on souhaite définir des propriétés héritées sur l'ensemble du
+   fichier, utilisez une ligne comme
+
+   : #+PROPERTY: NDisks_ALL 1 2 3 4
+
+   Les valeurs de propriétés définies dans le variable global
+   'org-global-properties' sont héritées dans tous les fichiers Org.
+
+   Les raccourcis claviers suivant facilite le travail avec les
+   propriétés:
+
+   - *M-<TAB>* ::
+     Après un « : » en début de ligne, complète avec toutes les clefs
+     de propriétés accessible dans le fichier courant.
+   - *C-c C-x p* ::
+     Sollicite la saisie du nom d'une propriétés et de sa valeur.
+   - *C-c C-c* ::
+     Quand le curseur est sur un marqueur de propriétés, cela exécute
+     des commandes de la propriété.
+   - *C-c C-c s* ::
+     Définit une propriété dans l'entrée actuelle. Propriété et valeur
+     peuvent être insérés à l'aide du complètement de code.
+   - *S-<left>/<right>* ::
+     Place la propriété du point courant à la valeur possible précédente/suivante.
+   - *C-c C-c d* ::
+     Supprime une propriété de l'entrée courante.
+   - *C-c C-c D* ::
+     Supprime une propriété dans toutes les entrées du ficher courant.
+   - *C-c C-c c* ::
+     Compute the property at point, using the operator and scope from
+     the nearest column format definition. (si quelqu'un comprend…)
+
+** Propriétés spéciales
+   Des propriétés spéciales fournissent une méthode alternative d'accès aux
+   caractéristiques du mode Org, comme l'état « TODO » ou la priorité d'une
+   entrée, examinées dans les chapitres précédents. Cette interface existe
+   pour pouvoir inclure ces états dans une vue en colonne (voir
+   [[*Vue en colonne][Vue en colonne]]), ou de les utiliser dans des requêtes. Les noms des
+   propriétés suivantes sont particulières et ne devraient pas être
+   utilisés comme clés dans un marqueur de propriété :
+
+   : TODO         The TODO keyword of the entry.
+   : TAGS         The tags defined directly in the headline.
+   : ALLTAGS      All tags, including inherited ones.
+   : CATEGORY     The category of an entry.
+   : PRIORITY     The priority of the entry, a string with a single letter.
+   : DEADLINE     The deadline time string, without the angular brackets.
+   : SCHEDULED    The scheduling timestamp, without the angular brackets.
+   : CLOSED       When was this entry closed?
+   : TIMESTAMP    The first keyword-less timestamp in the entry.
+   : TIMESTAMP_IA The first inactive timestamp in the entry.
+   : CLOCKSUM     The sum of CLOCK intervals in the subtree.  org-clock-sum
+   :              must be run first to compute the values.
+   : ITEM         The content of the entry.
+
+
+** Property searches
+** Property Inheritance
+
+** Vue en colonne
+   Par exemple la structure suivante:
+   : ** My project
+   :    :PROPERTIES:
+   :    :COLUMNS:  %20ITEM %9Approved(Approved?){X} %Owner %11Status %10Time_Spent{:}
+   :    :Owner_ALL: Tammy Mark Karl Lisa Don
+   :    :Status_ALL: "In progress" "Not started yet" "Finished" ""
+   :    :Approved_ALL: "[ ]" "[X]"
+   :    :END:
+   :
+   : *** Item 1
+   :     :PROPERTIES:
+   :     :Owner:    Tammy
+   :     :Time_spent: 1:45
+   :     :Status:   Finished
+   :     :END:
+   :
+   : *** Item 2
+   :     :PROPERTIES:
+   :     :Owner:    Tammy
+   :     :Status:   In progress
+   :     :Time_spent: 0:15
+   :     :END:
+   :
+   : *** Item 3
+   :     :PROPERTIES:
+   :     :Owner:    Lisa
+   :     :Status:   Not started yet
+   :     :Approved: [X]
+   :     :END:
+
+   Donnera ceci dans une vue en colonne:
+
+   [[file:res/column1-r.png]]
+
+   En mode replié:
+
+   [[file:res/column2-r.png]]
+
+   Pour plus d'information, voir [[http://orgmode.org/worg/org-tutorials/org-column-view-tutorial.php][ce tutoriel]].
+
+*** Defining columns
+**** Scope of column definitions
+**** Column attributes
+*** Using column view
+*** Capturing column view
+** The Property
+
+* Dates and Times
+
+** Timestamps, deadlines, and scheduling
+** Creating timestamps
+*** The date/time prompt
+*** Custom time format
+** Deadlines and scheduling
+*** Inserting deadlines or schedules
+*** Repeated tasks
+** Clocking work time
+** Resolving idle time
+** Effort estimates
+** Taking notes with a relative timer
+
+
+* Capture - Refile - Archive
+** Remember
+*** Setting up Remember for Org
+*** Remember templates
+*** Storing notes
+** Attachments
+** RSS feeds
+** Protocols for external access
+** Refiling notes
+** Archiving
+*** Moving a tree to the archive file
+*** Internal archiving
+
+
+* Agenda Views
+
+** Agenda files
+** The agenda dispatcher <<agenda-dispatcher>>
+** The built-in agenda views
+*** The weekly/daily agenda
+*** The global TODO list
+*** Matching tags and properties
+*** Timeline for a single file
+*** Search view
+*** Stuck projects
+** Presentation and sorting
+*** Categories
+*** Time-of-day specifications
+*** Sorting of agenda items
+** Commands in the agenda buffer
+** Custom agenda views
+*** Storing searches
+*** Block agenda
+*** Setting options for custom commands
+** Exporting Agenda Views
+** Using column view in the agenda
+
+
+* Markup for rich export
+** Structural markup elements
+** Images and Tables
+** Literal examples
+** Include files
+** Macro replacement
+** Embedded LaTeX
+*** Special symbols
+*** Subscripts and superscripts
+*** LaTeX fragments
+*** Previewing LaTeX fragments
+*** Using CDLaTeX to enter math
+
+
+* Exporting
+** Selective export
+** Export options
+** The export dispatcher
+** ASCII export
+** HTML export
+*** HTML export commands
+*** Quoting HTML tags
+*** Links in HTML export
+*** Tables
+*** Images in HTML export
+*** Text areas in HTML export
+*** CSS support
+*** Javascript supported display of web pages
+** LaTeX and PDF export
+*** LaTeX export commands
+*** Quoting LaTeX code
+*** Sectioning structure
+*** Tables in LaTeX export
+*** Images in LaTeX export
+*** Beamer class export
+** DocBook export
+*** DocBook export commands
+*** Quoting DocBook code
+*** Recursive sections
+*** Tables in DocBook export
+*** Images in DocBook export
+*** Special characters in DocBook export
+** Freemind export
+** XOXO export
+** iCalendar export
+
+
+* Publishing
+** Configuration
+*** The variable org-publish-project-alist
+*** Sources and destinations for files
+*** Selecting files
+*** Publishing action
+*** Options for the HTML/LaTeX exporters
+*** Links between published files
+*** Project page index
+** Uploading files
+** Sample configuration
+*** Example: simple publishing configuration
+*** Example: complex publishing configuration
+** Triggering publication
+
+
+* Miscellaneous
+** Completion
+** Speed keys
+** Customization
+** Summary of in-buffer settings
+** The very busy C-c C-c key
+** A cleaner outline view
+** Using Org on a tty
+** Interaction with other packages
+*** Packages that Org cooperates with
+*** Packages that lead to conflicts with Org mode
+
+
+* Appendix A Hacking
+** Hooks
+** Add-on packages
+** Adding hyperlink types
+** Context-sensitive commands
+** Tables and lists in arbitrary syntax
+*** Radio tables
+*** A LaTeX example of radio tables
+*** Translator functions
+*** Radio lists
+** Dynamic blocks
+** Special agenda views
+** Extracting agenda information
+** Using the property API
+** Using the mapping API
+
+
+* Appendix B MobileOrg
+** Setting up the staging area
+** Pushing to MobileOrg
+** Pulling from MobileOrg
+
+
+* Appendix C History and Acknowledgments
+
+* Concept Index
+
+* Key Index
+
+* Variable Index
