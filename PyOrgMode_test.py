@@ -1,4 +1,3 @@
-
 # -*- encoding: utf-8 -*-
 ##############################################################################
 #
@@ -28,6 +27,7 @@ representation of the file allows the use of orgfiles easily in your projects.
 
 import re
 import string
+import copy
 import time
 
 class OrgDate:
@@ -41,14 +41,12 @@ class OrgDate:
     INACTIVE = 16
     RANGED = 32
     REPEAT = 64
-    CLOCKED= 128
 
     # TODO: Timestamp with repeater interval
     DICT_RE = {'start': '[[<]',
                'end':   '[]>]',
                'date':  '([0-9]{4})-([0-9]{2})-([0-9]{2})(\s+([\w]+))?',
                'time':  '([0-9]{2}):([0-9]{2})',
-               'clock': '([0-9]{1}):([0-9]{2})',
                'repeat': '[\+\.]{1,2}\d+[dwmy]'}
 
     def __init__(self,value=None):
@@ -137,12 +135,6 @@ class OrgDate:
             if weekdayed:
                 self.format |= self.WEEKDAYED
             self.end = None
-        # clocked time
-        search_re = '(?P<clocked>{clock})'.format(**self.DICT_RE)
-        match = re.search(search_re, value)
-        if match:
-            self.value = value
-            self.format |= self.CLOCKED 
 
     def get_value(self):
         """
@@ -155,8 +147,6 @@ class OrgDate:
             fmt_dict['start'], fmt_dict['end'] = '[', ']'
         if self.format & self.WEEKDAYED:
             fmt_dict['date'] = '%Y-%m-%d %a'
-        if self.format & self.CLOCKED:
-            fmt_dict['clock'] = "%H:%M"
         else:
             fmt_dict['date'] = '%Y-%m-%d'
         if self.format & self.RANGED:
@@ -182,9 +172,6 @@ class OrgDate:
                             time.strftime(
                                 '{start}{date}{end}'.format(**fmt_dict),
                                 self.end))
-        if self.format & self.CLOCKED:
-            # clocked time, return as is
-            return self.value
         else: # non-ranged time
             # Repeated
             if self.format & self.REPEAT:
@@ -276,7 +263,7 @@ class OrgTodo():
     def __init__(self, heading, todo_state,
                  scheduled=None, deadline=None,
                  tags=None, priority=None,
-                 path=[0], node=None
+                 path=[0]
                  ):
         self.heading = heading
         self.todo_state = todo_state
@@ -284,7 +271,6 @@ class OrgTodo():
         self.deadline = deadline
         self.tags = tags
         self.priority = priority
-        self.node = node
     def __str__(self):
         string = self.todo_state + " " + self.heading
         return string
@@ -466,10 +452,10 @@ class OrgNode(OrgPlugin):
             for todo_keyword in self.todo_list + self.done_list:
                 re_todos += separator
                 separator = "|"
-                re_todos += todo_keyword + "\s+"
+                re_todos += todo_keyword
             re_todos += ")?\s*"
             regexp_string += re_todos
-        regexp_string += "(\[.*?\])?\s+(.*)$"
+        regexp_string += "(\[.*\])?\s*(.*)$"
         self.regexp = re.compile(regexp_string)
         heading = self.regexp.findall(line)
         if heading: # We have a heading
@@ -497,22 +483,13 @@ class OrgNode(OrgPlugin):
       
             # Looking for tags
             heading_without_links = re.sub(" \[(.+)\]","",heading[0][3])
-            heading_without_title = re.sub(r"^(?:.+)\s+(?=:)", "", heading_without_links)
-            matches = re.finditer(r'(?=:([\w]+):)',heading_without_links)
-            # if no change, there is no residual string that
-
-            # follows the tag grammar
-            if heading_without_links != heading_without_title:
-                matches = re.finditer(r'(?=:([\w]+):)',heading_without_title)
-                [current.tags.append(match.group(1)) for match in matches]
-
-
+            current.tags = re.findall(":([\w]+):",heading_without_links)
         else:
             self.treated = False
         return current
     def _close(self,current):
         # Add the last node
-        if current.level>0 and current.parent:
+        if current.level>0:
             current.parent.append(current)
 
     class Element(OrgElement):
@@ -537,7 +514,7 @@ class OrgNode(OrgPlugin):
 
             if hasattr(self, "todo"):
                 output = output + " " + self.todo
-
+                
             if self.parent is not None:
                 output = output + " "
                 if self.priority:
@@ -641,7 +618,7 @@ class OrgDataStructure(OrgElement):
                 plugin.todo_list = new_todo_states
                 plugin.done_list = new_done_states
         if new_states:
-            return new_states # Return any leftovers  
+            return new_states # Return any leftovers
     def get_todo_states(self, list_type="todo"):
         """
         Returns a list of todo states. An empty list means that
@@ -715,7 +692,7 @@ class OrgDataStructure(OrgElement):
                     pass
                 else: # Handle it
                     if current_todo in todo_list:
-                        new_todo = OrgTodo(node.heading, node.todo, tags=node.tags,priority=node.priority, node=node)
+                        new_todo = OrgTodo(node.heading, node.todo)
                         results_list.append(new_todo)
                 # Now check if it has sub-headings
                 try:
@@ -737,14 +714,14 @@ class OrgDataStructure(OrgElement):
         elif form == "string":
             content = name.split("\n")
         else:
-            raise ValueError("Form \""+form+"\" not recognized")
+            raise ValueError("Form \""+form+"\" not recognized") 
 
         for line in content:
             for plugin in self.plugins:
                 current = plugin.treat(current,line)
                 if plugin.treated: # Plugin found something
                     treated = True
-                    break
+                    break;
                 else:
                     treated = False
             if not treated and line is not None: # Nothing special, just content
@@ -752,6 +729,7 @@ class OrgDataStructure(OrgElement):
 
         for plugin in self.plugins:
             current = plugin.close(current)
+
     def load_from_string(self, string):
         """
         A wrapper calling load_from_file but with a string instead of reading from a file.
@@ -767,57 +745,3 @@ class OrgDataStructure(OrgElement):
             node = self.root
         output.write(str(node))
         output.close()
-
-
-    @staticmethod
-    def parse_heading(heading):
-        heading = heading.strip()
-        r = re.compile('(.*)(?:\s+\[(\d+)/(\d+)\])(?:\s+)?')
-        m = r.match(heading)
-        if m:
-            return {'heading': m.group(1),
-                    'todo_done': m.group(2),
-                    'todo_total': m.group(3)}
-        else:
-            return {'heading': heading}
-
-
-    @staticmethod
-    def get_nodes_by_priority(node, priority, found_nodes=[]):
-
-        # print "start of get_nodes_by_priority"
-        # print " node instance type: %s" % node.__class__.__name__
-
-        if isinstance(node, OrgElement):
-            # print " node.heading: %s" % node.heading
-            try:
-                if node.todo and node.priority == priority:
-                    found_nodes.append(node)
-                    #return found_nodes
-            except AttributeError:
-                # TODO: This could be a Property.  Handle it!
-                pass
-
-            for node in node.content:
-                OrgDataStructure.get_nodes_by_priority(node, priority, found_nodes)
-            return found_nodes
-        else:
-            return found_nodes
-
-    @staticmethod
-    def get_node_by_heading(node, heading, found_nodes=[]):
-
-        if isinstance(node, OrgElement):
-            try:
-                heading_dict = OrgDataStructure.parse_heading(node.heading)
-                if heading_dict['heading'] == heading.strip():
-                    found_nodes.append(node)
-            except AttributeError:
-                # TODO: This could be a Property.  Handle it!
-                pass
-
-            for node in node.content:
-                OrgDataStructure.get_node_by_heading(node, heading, found_nodes)
-            return found_nodes
-        else:
-            return found_nodes

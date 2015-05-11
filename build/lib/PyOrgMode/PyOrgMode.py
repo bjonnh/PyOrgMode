@@ -469,7 +469,7 @@ class OrgNode(OrgPlugin):
                 re_todos += todo_keyword + "\s+"
             re_todos += ")?\s*"
             regexp_string += re_todos
-        regexp_string += "(\[.*?\])?\s+(.*)$"
+        regexp_string += "(\[.*?\])?\s*(.*)$"
         self.regexp = re.compile(regexp_string)
         heading = self.regexp.findall(line)
         if heading: # We have a heading
@@ -497,22 +497,15 @@ class OrgNode(OrgPlugin):
       
             # Looking for tags
             heading_without_links = re.sub(" \[(.+)\]","",heading[0][3])
-            heading_without_title = re.sub(r"^(?:.+)\s+(?=:)", "", heading_without_links)
+
             matches = re.finditer(r'(?=:([\w]+):)',heading_without_links)
-            # if no change, there is no residual string that
-
-            # follows the tag grammar
-            if heading_without_links != heading_without_title:
-                matches = re.finditer(r'(?=:([\w]+):)',heading_without_title)
-                [current.tags.append(match.group(1)) for match in matches]
-
-
+            [current.tags.append(match.group(1)) for match in matches]
         else:
             self.treated = False
         return current
     def _close(self,current):
         # Add the last node
-        if current.level>0 and current.parent:
+        if current.level>0:
             current.parent.append(current)
 
     class Element(OrgElement):
