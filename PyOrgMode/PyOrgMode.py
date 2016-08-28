@@ -753,7 +753,7 @@ class OrgDataStructure(OrgElement):
         if form == "file":
             content = open(name,'r')
         elif form == "string":
-            content = name.split("\n")
+            content = [tmp+"\n" for tmp in name.split("\n")]
         else:
             raise ValueError("Form \""+form+"\" not recognized")
 
