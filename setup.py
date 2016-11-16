@@ -8,7 +8,6 @@ setup(
     author = 'Jonathan BISSON',
     author_email = 'Jonathan.BISSON@bjonnh.net',
     url = 'https://github.com/bjonnh/PyOrgMode', # use the URL to the github repo
-    download_url = 'https://github.com/bjonnh/PyOrgMode/tarball/0.03b', # I'll explain this in a second
     keywords = ['org-mode'],
     classifiers = [],
 )
