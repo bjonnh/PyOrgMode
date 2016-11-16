@@ -401,7 +401,7 @@ class OrgDrawer(OrgPlugin):
         drawer = self.regexp.search(line)
         if isinstance(current, OrgDrawer.Element): # We are in a drawer
             if drawer:
-                if drawer.group(1) == "END": # Ending drawer
+                if drawer.group(1).upper() == "END": # Ending drawer
                     current = current.parent
                 elif drawer.group(2): # Adding a property
                     self._append(current,self.Property(drawer.group(1),drawer.group(2)))
@@ -753,7 +753,7 @@ class OrgDataStructure(OrgElement):
         if form == "file":
             content = open(name,'r')
         elif form == "string":
-            content = name.split("\n")
+            content = [tmp+"\n" for tmp in name.split("\n")]
         else:
             raise ValueError("Form \""+form+"\" not recognized")
 
