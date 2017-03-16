@@ -480,11 +480,11 @@ class OrgNode(OrgPlugin):
         regexp_string = "^(\*+)\s*"
         if self.todo_list:
             separator = ""
-            re_todos = "("
+            re_todos = "(" 
             for todo_keyword in self.todo_list + self.done_list:
                 re_todos += separator
                 separator = "|"
-                re_todos += todo_keyword + "\s+"
+                re_todos += todo_keyword 
             re_todos += ")?\s*"
             regexp_string += re_todos
         regexp_string += "(\[.*?\])?\s+(.*)$"
@@ -507,7 +507,8 @@ class OrgNode(OrgPlugin):
             # Creating a new node and assigning parameters
             current = OrgNode.Element() 
             current.level = len(heading[0][0])
-            current.heading = re.sub(":([\w]+):","",heading[0][3]) # Remove tags
+            current.heading = re.sub("(:\w+)*:","",heading[0][3]) # Remove tags
+            
             current.priority = heading[0][2].strip('[#]')
             current.parent = parent
             if heading[0][1]:
@@ -562,9 +563,9 @@ class OrgNode(OrgPlugin):
                     output = output + "[#" + self.priority + "] "
                 output = output + self.heading
   
-                for tag in self.tags:
-                    output= output + ":" + tag + ":"
-  
+                if self.tags:
+                    output += ':' + ':'.join(self.tags) + ':'
+                    
                 output = output + "\n"
     
             for element in self.content:
