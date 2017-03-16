@@ -1,6 +1,4 @@
-
 import PyOrgMode
-import time
 import unittest
 
 
@@ -14,6 +12,7 @@ class TestClockElement(unittest.TestCase):
                 orgdate_element = PyOrgMode.OrgDate(orig_str)
                 formatted_str = orgdate_element.get_value()
                 self.assertEqual(formatted_str, orig_str)
-  
+
+
 if __name__ == '__main__':
     unittest.main()
