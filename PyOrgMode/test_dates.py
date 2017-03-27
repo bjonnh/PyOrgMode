@@ -40,7 +40,7 @@ class TestDates(unittest.TestCase):
         datestr = '<2011-12-12 Пнд 09:00>' # Понедельник = Monday (Russian)
         date = PyOrgMode.OrgDate(datestr)
         self.assertEqual(tuple(date.value), (2011, 12, 12, 9, 0, 0, 0, 346, -1))
-        self.assertEqual(date.get_value(), datestr)
+        self.assertEqual(date.get_value(), '<2011-12-12 Mon 09:00>')
 
     def test_localizeddatetime_dot(self):
         """
@@ -49,7 +49,7 @@ class TestDates(unittest.TestCase):
         datestr = '<2011-12-12 al. 09:00>' # astelehena = Monday (Basque)
         date = PyOrgMode.OrgDate(datestr)
         self.assertEqual(tuple(date.value), (2011, 12, 12, 9, 0, 0, 0, 346, -1))
-        self.assertEqual(date.get_value(), datestr)
+        self.assertEqual(date.get_value(), '<2011-12-12 Mon 09:00>')
 
     def test_timerange(self):
         """
