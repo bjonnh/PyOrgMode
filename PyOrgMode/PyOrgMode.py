@@ -77,13 +77,18 @@ class OrgDate:
             'nottimed': [False, '{0}', '%Y-%m-%d'],
         }
 
+        # We ignore weekdays (e.g. "Mon", "Tue") because a single org file
+        # could mix dates in many locales, e.g. if it was edited through
+        # many compters, each with a different language
+        PARSE_WEEKDAYS=False
+
         if s.group('time'):
-            if weekday_suffix == "":
+            if weekday_suffix == "" or not PARSE_WEEKDAYS:
                 format_date = 'timed'
             else:
                 format_date = 'timed_weekday'
         else:
-            if weekday_suffix == "":
+            if weekday_suffix == "" or not PARSE_WEEKDAYS:
                 format_date = 'nottimed'
             else:
                 format_date = 'nottimed_weekday'
