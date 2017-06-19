@@ -71,22 +71,27 @@ class OrgDate:
         if weekdayed is True:
             weekday_suffix = s.group('date').split()[1]
         formats = {
-            'timed_dated': [True, '{0} {1} {2}', '%Y-%m-%d %a %H:%M'],
+            'timed_weekday': [True, '{0} {1} {2}', '%Y-%m-%d %a %H:%M'],
             'timed': [True, '{0} {2}', '%Y-%m-%d %H:%M'],
-            'nottimed_dated': [False, '{0} {1}', '%Y-%m-%d %a'],
-            'notdated': [False, '{0}', '%Y-%m-%d'],
+            'nottimed_weekday': [False, '{0} {1}', '%Y-%m-%d %a'],
+            'nottimed': [False, '{0}', '%Y-%m-%d'],
         }
 
+        # We ignore weekdays (e.g. "Mon", "Tue") because a single org file
+        # could mix dates in many locales, e.g. if it was edited through
+        # many compters, each with a different language
+        PARSE_WEEKDAYS=False
+
         if s.group('time'):
-            if weekday_suffix == "":
+            if weekday_suffix == "" or not PARSE_WEEKDAYS:
                 format_date = 'timed'
             else:
-                format_date = 'timed_dated'
+                format_date = 'timed_weekday'
         else:
-            if weekday_suffix == "":
-                format_date = 'notdated'
+            if weekday_suffix == "" or not PARSE_WEEKDAYS:
+                format_date = 'nottimed'
             else:
-                format_date = 'nottimed_dated'
+                format_date = 'nottimed_weekday'
 
         return (formats[format_date][0], weekdayed,
                 time.strptime(

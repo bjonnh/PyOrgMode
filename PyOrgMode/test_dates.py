@@ -33,6 +33,24 @@ class TestDates(unittest.TestCase):
         self.assertEqual(tuple(date.value), (2013, 11, 20, 0, 0, 0, 2, 324, -1))
         self.assertEqual(date.get_value(), datestr)
 
+    def test_localizeddatetime_unicode(self):
+        """
+        Tests parsing dates with localized weekday name that uses non-ASCII.
+        """
+        datestr = '<2011-12-12 Пнд 09:00>' # Понедельник = Monday (Russian)
+        date = PyOrgMode.OrgDate(datestr)
+        self.assertEqual(tuple(date.value), (2011, 12, 12, 9, 0, 0, 0, 346, -1))
+        self.assertEqual(date.get_value(), '<2011-12-12 Mon 09:00>')
+
+    def test_localizeddatetime_dot(self):
+        """
+        Tests parsing dates with localized weekday name that includes a dot.
+        """
+        datestr = '<2011-12-12 al. 09:00>' # astelehena = Monday (Basque)
+        date = PyOrgMode.OrgDate(datestr)
+        self.assertEqual(tuple(date.value), (2011, 12, 12, 9, 0, 0, 0, 346, -1))
+        self.assertEqual(date.get_value(), '<2011-12-12 Mon 09:00>')
+
     def test_timerange(self):
         """
         Tests parsing time ranges on the same day.
