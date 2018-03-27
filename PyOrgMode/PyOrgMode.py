@@ -575,7 +575,7 @@ class OrgNode(OrgPlugin):
             current = OrgNode.Element()
             current.level = len(heading[0][0])
 
-            current.heading = re.sub(":([:\w]+)*:",
+            current.heading = re.sub(":([:\w@]+)*:",
                                      "",
                                      heading[0][3])  # Remove tags
 
@@ -588,12 +588,12 @@ class OrgNode(OrgPlugin):
             heading_without_links = re.sub(" \[(.+)\]", "", heading[0][3])
             heading_without_title = re.sub(r"^(?:.+)\s+(?=:)", "",
                                            heading_without_links)
-            matches = re.finditer(r'(?=:([\w]+):)', heading_without_links)
+            matches = re.finditer(r'(?=:([\w@]+):)', heading_without_links)
             # if no change, there is no residual string that
 
             # follows the tag grammar
             if heading_without_links != heading_without_title:
-                matches = re.finditer(r'(?=:([\w]+):)',
+                matches = re.finditer(r'(?=:([\w@]+):)',
                                       heading_without_title)
                 [current.tags.append(match.group(1)) for match in matches]
         else:
