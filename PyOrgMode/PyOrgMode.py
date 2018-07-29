@@ -26,6 +26,7 @@ The PyOrgMode class is able to read,modify and create orgfiles. The internal
 representation of the file allows the use of orgfiles easily in your projects.
 """
 
+import copy
 import re
 import time
 
@@ -620,6 +621,57 @@ class OrgNode(OrgPlugin):
             self.tags = []
             # TODO  Scheduling structure
 
+        def get_all_tags(self, use_tag_inheritance = True,
+                         tags_exclude_from_inheritance = []):
+            """Retrieve all tags applicable to this node, including those inherited from
+            parents or the document itself.
+
+            :param use_tag_inheritance: If None, the only tags that apply to a
+                                        node are those specified on it's
+                                        heading; if True, tags applied a
+                                        heading also apply to
+                                        sub-headings. Otherwise, it may also be
+                                        a list of tags that should be
+                                        inherited, or a regex matching tags to
+                                        be inherited.
+            :param tags_exclude_from_inheritance: gives an explicit list of
+                                                  tags to be excluded from
+                                                  inheritance, even if the
+                                                  value of use_tag_inheritance
+                                                  would select it for
+                                                  inheritance.
+
+            Org nodes may have tags applied directly to them; this set is
+            contained in the ``tags`` attribute. Nodes may also *inherit* tags
+            from parents, or the file themselves (via the "#+FILETAGS"
+            in-buffer setting). Use this method to retrieve teh entire set
+            of tags that apply to this node, both direct & inherited.
+
+            These are analagous to the Emacs variables
+            ``org-use-tag-inheritance`` and
+            ``org-tags-exclude-from-inheritance``.
+            """
+
+            retype = type(re.compile(''))
+
+            def _inheritable(tag):
+                if tag in tags_exclude_from_inheritance:
+                    return False
+                if use_tag_inheritance == True:
+                    return True
+                if use_tag_inheritance is None:
+                    return False
+                if isinstance(use_tag_inheritance, retype):
+                    return use_tag_inheritance.match(tag)
+                return tag in use_tag_inheritance
+
+            rv = copy.deepcopy(self.tags)
+            this = self
+            while this.parent is not None:
+                this = this.parent
+                rv.extend(filter(_inheritable, this.tags))
+            return rv
+
         def _output(self):
             output = ""
 
@@ -673,6 +725,31 @@ class OrgNode(OrgPlugin):
                                                   level+1)
 
 
+class OrgFileTags(OrgPlugin):
+    """A plugin that recognizes FILETAGS & adds them to the root object."""
+
+    IN_BUFFER_RE = re.compile(r'\s*#\+FILETAGS:\s+([:a-zA-Z_]+)', re.I)
+    TAGS_RE = re.compile(r'(?=(^|:)(\w+)(:|$))', re.I)
+
+    def __init__(self):
+        OrgPlugin.__init__(self)
+
+    def _treat(self, current, line):
+
+        what = self.IN_BUFFER_RE.search(line)
+        if what is None:
+            self.treated = False
+            return current
+
+        file_tags = [m.group(2) for m in re.finditer(self.TAGS_RE, what.group(1))]
+        root = current
+        while root.parent is not None:
+            root = root.parent
+        root.tags.extend(file_tags)
+        self.treated = True
+        return current
+
+
 class OrgDataStructure(OrgElement):
     """
     Data structure containing all the nodes
@@ -688,7 +765,8 @@ class OrgDataStructure(OrgElement):
                           OrgDrawer(),
                           OrgNode(),
                           OrgSchedule(),
-                          OrgClock())
+                          OrgClock(),
+                          OrgFileTags())
 
         # Add a root element
         #
