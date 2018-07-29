@@ -28,5 +28,14 @@ class TestHeadlineValidity(unittest.TestCase):
         self.assertNotIsInstance(node.content[0],
                                  PyOrgMode.OrgNode.Element)
 
+    def test_links_in_headline(self):
+        """Links and priorities are distinguished in headlines"""
+        link = '[[http://github.com][Github]]'
+        tree = PyOrgMode.OrgDataStructure()
+        tree.load_from_string('* ' + link + ' :tag:')
+        node = tree.root.content[0]
+        self.assertTrue(node.heading.rstrip() == link)
+        self.assertTrue('tag' in node.tags)
+
 if __name__ == '__main__':
     unittest.main()
