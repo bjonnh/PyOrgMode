@@ -105,7 +105,12 @@ class OrgDate:
         """
         Setting the value of this element (automatic recognition of format)
         """
+
         self.value = None  # By default…
+
+        if value is None:
+            return
+
         # Checking whether it is an active date-time or not
         if value[0] == '<':
             self.format |= self.ACTIVE
