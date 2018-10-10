@@ -116,4 +116,5 @@ Seamus Tuohy (@elationfoundation on github)
 clemente (github)
 kbarber2 (github)
 sp1ff (github)
+inducer (github)
 #+end_src
