@@ -47,10 +47,10 @@ class OrgDate:
     # TODO: Timestamp with repeater interval
     DICT_RE = {'start': '[[<]',
                'end':   '[]>]',
-               'date':  '([0-9]{4})-([0-9]{2})-([0-9]{2})(\s+([\w.]+))?',
+               'date':  r'([0-9]{4})-([0-9]{2})-([0-9]{2})(\s+([\w.]+))?',
                'time':  '([0-9]{2}):([0-9]{2})',
                'clock': '([0-9]{1}):([0-9]{2})',
-               'repeat': '[\+\.]{1,2}\d+[dwmy]'}
+               'repeat': r'[\+\.]{1,2}\d+[dwmy]'}
 
     def __init__(self, value=None):
         """
@@ -63,7 +63,7 @@ class OrgDate:
         Parses an org-mode date time string.
         Returns (timed, weekdayed, time_struct, repeat).
         """
-        search_re = '(?P<date>{date})(\s+(?P<time>{time}))?'.format(
+        search_re = r'r(?P<date>{date})(\s+(?P<time>{time}))?'.format(
             **self.DICT_RE)
         s = re.search(search_re, s)
 
@@ -118,7 +118,7 @@ class OrgDate:
             self.format |= self.INACTIVE
 
         # time range on a single day
-        search_re = ('{start}(?P<date>{date})\s+(?P<time1>{time})'
+        search_re = (r'{start}(?P<date>{date})\s+(?P<time1>{time})'
                      '-(?P<time2>{time}){end}').format(**self.DICT_RE)
         match = re.search(search_re, value)
 
@@ -133,8 +133,8 @@ class OrgDate:
             self.format |= self.TIMED | self.DATED | self.RANGED
             return
         # date range over several days
-        search_re = ('{start}(?P<date1>{date}(\s+{time})?){end}--'
-                     '{start}(?P<date2>{date}(\s+{time})?){end}').format(
+        search_re = (r'{start}(?P<date1>{date}(\s+{time})?){end}--'
+                     r'{start}(?P<date2>{date}(\s+{time})?){end}').format(
             **self.DICT_RE)
         match = re.search(search_re, value)
         if match:
@@ -149,8 +149,8 @@ class OrgDate:
             self.format |= self.DATED | self.RANGED
             return
         # single date with no range
-        search_re = ('{start}(?P<datetime>{date}(\s+{time})?)' +
-                     '(\s+(?P<repeat>{repeat}))?{end}').format(
+        search_re = (r'{start}(?P<datetime>{date}(\s+{time})?)' +
+                     r'(\s+(?P<repeat>{repeat}))?{end}').format(
                         **self.DICT_RE)
         match = re.search(search_re, value)
         if match:
@@ -344,7 +344,7 @@ class OrgClock(OrgPlugin):
     def __init__(self):
         OrgPlugin.__init__(self)
         self.regexp = re.compile(
-            "(?:\s*)CLOCK:(?:\s*)((?:<|\[).*(?:>||\]))--\
+            r"(?:\s*)CLOCK:(?:\s*)((?:<|\[).*(?:>||\]))--\
             ((?:<|\[).*(?:>||\])).+=>\s*(.*)")
 
     def _treat(self, current, line):
@@ -383,11 +383,11 @@ class OrgSchedule(OrgPlugin):
         OrgPlugin.__init__(self)
 
         self.regexp_scheduled = re.compile(
-            "SCHEDULED: ((<|\[).*?(>|\])(--(<|\[).*?(>|\]))?)")
+            r"SCHEDULED: ((<|\[).*?(>|\])(--(<|\[).*?(>|\]))?)")
         self.regexp_deadline = re.compile(
-            "DEADLINE: ((<|\[).*?(>|\])(--(<|\[).*?(>|\]))?)")
+            r"DEADLINE: ((<|\[).*?(>|\])(--(<|\[).*?(>|\]))?)")
         self.regexp_closed = re.compile(
-            "CLOSED: ((<|\[).*?(>|\])(--(<|\[).*?(>|\]))?)")
+            r"CLOSED: ((<|\[).*?(>|\])(--(<|\[).*?(>|\]))?)")
 
     def _treat(self, current, line):
         scheduled = self.regexp_scheduled.findall(line)
@@ -449,7 +449,7 @@ class OrgDrawer(OrgPlugin):
     """A Plugin for drawers"""
     def __init__(self):
         OrgPlugin.__init__(self)
-        self.regexp = re.compile("^(?:\s*?)(?::)(\S.*?)(?::)\s*(.*?)$")
+        self.regexp = re.compile(r"^(?:\s*?)(?::)(\S.*?)(?::)\s*(.*?)$")
 
     def _treat(self, current, line):
         drawer = self.regexp.search(line)
@@ -505,7 +505,7 @@ class OrgTable(OrgPlugin):
     """A plugin for table managment"""
     def __init__(self):
         OrgPlugin.__init__(self)
-        self.regexp = re.compile("^\s*\|")
+        self.regexp = re.compile(r"^\s*\|")
 
     def _treat(self, current, line):
         table = self.regexp.match(line)
@@ -548,7 +548,7 @@ class OrgNode(OrgPlugin):
 
     def _treat(self, current, line):
         # Build regexp
-        regexp_string = "^(\*+)\s*"
+        regexp_string = r"^(\*+)\s*"
         if self.todo_list:
             separator = ""
             re_todos = "("
@@ -556,9 +556,9 @@ class OrgNode(OrgPlugin):
                 re_todos += separator
                 separator = "|"
                 re_todos += todo_keyword
-            re_todos += ")?\s*"
+            re_todos += r")?\s*"
             regexp_string += re_todos
-        regexp_string += "(\[#.*?\])?\s+(.*)$"
+        regexp_string += r"(\[#.*?\])?\s+(.*)$"
         self.regexp = re.compile(regexp_string)
         heading = self.regexp.findall(line)
         if heading:  # We have a heading
@@ -581,7 +581,7 @@ class OrgNode(OrgPlugin):
             current = OrgNode.Element()
             current.level = len(heading[0][0])
 
-            current.heading = re.sub(":([:\w@]+)*:",
+            current.heading = re.sub(r":([:\w@]+)*:",
                                      "",
                                      heading[0][3])  # Remove tags
 
@@ -591,7 +591,7 @@ class OrgNode(OrgPlugin):
                 current.todo = heading[0][1]
 
             # Looking for tags
-            heading_without_links = re.sub(" \[(.+)\]", "", heading[0][3])
+            heading_without_links = re.sub(r" \[(.+)\]", "", heading[0][3])
             heading_without_title = re.sub(r"^(?:.+)\s+(?=:)", "",
                                            heading_without_links)
             matches = re.finditer(r'(?=:([\w@]+):)', heading_without_links)
@@ -979,7 +979,7 @@ class OrgDataStructure(OrgElement):
     @staticmethod
     def parse_heading(heading):
         heading = heading.strip()
-        r = re.compile('(.*)(?:\s+\[(\d+)/(\d+)\])(?:\s+)?')
+        r = re.compile(r'(.*)(?:\s+\[(\d+)/(\d+)\])(?:\s+)?')
         m = r.match(heading)
         if m:
             return {'heading': m.group(1),
