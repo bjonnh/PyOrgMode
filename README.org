@@ -1,6 +1,8 @@
 #+BABEL: :comments no
 #+VERSION: 0.03a
 
+**PyOrgMode is currently unmaintained, I do not use it anymore. It would benefit from a complete rewrite. There was no need for that stupid plugin architecture. Contact me if you are interested in getting it better, but I would really just recommend that it is just started from scratch with better practices of documentation, testing...** 
+
 * PyOrgMode
 PyOrgMode is a small python library able to do simple tasks with your org files. It allows you to generate org files or treat them in an automated fashion.
 
